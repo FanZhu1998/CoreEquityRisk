@@ -1,0 +1,20 @@
+# Preset overlays (blueprint §16). The model YAML's `preset` key selects one; it is deep-merged
+# over the model YAML before validation, and every key it sets must already exist there.
+use4s: {}                         # the model YAML already carries USE4S values (Tables 4.1, 5.1)
+
+use4l:                            # USE4L: longer volatility and VRA half-lives
+  factor_cov:
+    vol: {half_life: 252}
+    vra: {half_life: 168}
+  specific_risk:
+    ts: {half_life: 252}
+    vra: {half_life: 168}
+
+lab:                              # jeves1202/use4-learning-lab choices [LAB]
+  factor_cov:
+    corr: {half_life: 252, nw_lags: 5}
+    eigen: {a: 1.2, estimator: equal_weight_neff}
+  specific_risk:
+    shrinkage: {q: 1.0}
+  descriptors:
+    growth: {weights: {EGRO: 0.90, SGRO: 0.10}}

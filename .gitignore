@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- EQRisk (blueprint rule 6: never commit data or secrets) ---
+data/
+logs/
+reports/
+site/
+*.duckdb
+*.duckdb.wal

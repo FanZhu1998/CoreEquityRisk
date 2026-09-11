@@ -1,0 +1,98 @@
+[project]
+name = "eqrisk"
+version = "0.1.0"
+description = "EQRisk: a USE4-style fundamental equity factor risk model (S&P 500, daily, 1-month horizon)"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "Fan Zhu" }]
+dependencies = [
+    # panels, storage, queries
+    "polars>=1.0",
+    "duckdb>=1.0",
+    "pyarrow>=16",
+    "pandas>=2.2",               # exchange_calendars, riskfolio and streamlit need it
+    # math
+    "numpy>=2.0",
+    "scipy>=1.13",
+    # config, CLI, logging
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "pyyaml>=6.0",
+    "typer>=0.12",
+    "structlog>=24.1",
+    "exchange-calendars>=4.5",
+    # data clients
+    "httpx>=0.27",
+    "tenacity>=8.3",
+    "databento>=0.40",
+    # optimization
+    "cvxpy>=1.5",
+    "clarabel>=0.9",
+    "riskfolio-lib>=7.0",
+    # UI and reports
+    "streamlit>=1.36",
+    "plotly>=5.22",
+    "matplotlib>=3.8",
+]
+
+[project.scripts]
+eqrisk = "eqrisk.cli:app"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2",
+    "hypothesis>=6.100",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+    "types-PyYAML",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["eqrisk"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -m 'not live'"
+markers = [
+    "slow: timing benchmarks",
+    "live: hits a real vendor API; deselected by default (run with -m live)",
+    "golden: needs staged development-slice data under data/; skipped when absent",
+]
+filterwarnings = ["ignore::DeprecationWarning:exchange_calendars.*"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+extend-exclude = ["docs", "notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = [
+    "E741",   # ambiguous names such as l are idiomatic in the formulas (lag l)
+    "SIM108", # explicit two-branch blocks carry comments
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Appendix A is kept verbatim; the style rules below would force edits to tested code.
+"eqrisk/kernels/reference.py" = ["UP035", "E501", "B905"]
+"tests/**" = ["E731", "E501", "B023"]
+# Appendix A.2 verbatim apart from its import line.
+"tests/kernels/test_reference_kernels.py" = ["I001"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+# Appendix A.1 stays byte-identical to the blueprint (tests/kernels/test_verbatim.py). numpy 2.5
+# stubs type the results of `@` and `/` as Any, which trips warn_return_any on seven return
+# statements. Only that one check is relaxed, only for this module (DECISIONS D-002).
+module = "eqrisk.kernels.reference"
+warn_return_any = false

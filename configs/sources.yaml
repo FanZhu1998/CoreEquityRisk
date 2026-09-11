@@ -1,0 +1,42 @@
+# Vendor endpoints, rate limits and dataset IDs (blueprint §3.4). Keys live in .env, never here.
+http:
+  retries: 5
+  backoff_initial_s: 1.0
+  backoff_max_s: 30.0
+  timeout_s: 60.0
+
+eodhd:
+  base_url: https://eodhd.com/api
+  exchange: US
+  requests_per_second: 10
+  daily_window_sessions: 10       # daily pulls re-fetch this many sessions so a return never
+                                  # mixes two adjusted-close vintages (D-001)
+
+databento:                        # metered: every request is priced first (AGENTS.md)
+  dataset: EQUS.SUMMARY
+  schema: ohlcv-1d
+  stype_in: raw_symbol
+  max_cost_usd: 0.50
+
+edgar:
+  data_url: https://data.sec.gov
+  www_url: https://www.sec.gov
+  requests_per_second: 8          # SEC allows 10; stay under it
+  forms: [10-K, 10-K/A, 10-Q, 10-Q/A, 10-KT, 10-KT/A, 10-QT, 10-QT/A]
+
+fred:
+  base_url: https://api.stlouisfed.org/fred
+
+fja05680:
+  contents_api: https://api.github.com/repos/fja05680/sp500/contents
+  raw_base: https://raw.githubusercontent.com/fja05680/sp500/master
+  file_prefix: "S&P 500 Historical Components & Changes"
+
+famafrench:
+  base_url: https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp
+  factors_file: F-F_Research_Data_Factors_daily_CSV.zip
+  momentum_file: F-F_Momentum_Factor_daily_CSV.zip
+
+sharadar:
+  base_url: https://data.nasdaq.com/api/v3/datatables/SHARADAR
+  page_size: 10000

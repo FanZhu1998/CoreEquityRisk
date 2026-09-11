@@ -1,0 +1,4 @@
+# Manual (ticker, date span) -> security fixes (blueprint 4.2). One row per membership ticker span.
+# ticker: membership ticker without the -YYYYMM suffix; eodhd_code: vendor symbol for prices;
+# cik: SEC CIK (issuer); blank fields fall back to automatic resolution.
+ticker,start_date,end_date,eodhd_code,cik,share_class,note
