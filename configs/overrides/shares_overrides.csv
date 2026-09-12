@@ -1,0 +1,4 @@
+# Manual share counts for issuers whose EDGAR facts cannot give one (e.g. dimension-only cover pages).
+# One row per observation; used like an EDGAR fact dated `as_of`, available the session after `filed`.
+# shares = issuer-level shares in units of the listed class's price (e.g. Class B equivalents for BRK.B).
+cik,as_of,filed,shares,source,note

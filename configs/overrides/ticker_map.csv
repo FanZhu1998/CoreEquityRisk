@@ -1,0 +1,10 @@
+# Manual (ticker, date span) -> security fixes (blueprint 4.2). One row per membership ticker span.
+# ticker: membership ticker without the -YYYYMM suffix; eodhd_code: vendor symbol for prices;
+# cik: SEC CIK (issuer); blank fields fall back to automatic resolution.
+ticker,start_date,end_date,eodhd_code,cik,share_class,note
+BCR,,,,9892,,C.R. Bard: SEC files it as BARD C R INC /NJ/
+CA,,,,356028,,CA Inc. (the vendor names it CA Technologies)
+MNK,,,MNK_old,1567892,,Mallinckrodt plc: EODHD labels MNK_old with a fund's name
+FOXA,2016-01-04,2019-03-19,TFCFA,1308161,,Twenty-First Century Fox Class A until the Disney deal closed
+FOX,2016-01-04,2019-03-19,TFCF,1308161,,Twenty-First Century Fox Class B until the Disney deal closed
+SE,,,,1373835,,Spectra Energy Corp: EODHD has no history under SE

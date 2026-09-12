@@ -1,0 +1,85 @@
+# Fundamentals concept map (blueprint Appendix C.1). For every period the first concept in `chain`
+# that has a value wins, and the concept used is recorded. `fallback_sum` applies only when no chain
+# concept has a value for that period: the available components are added up.
+# Concepts are us-gaap unless prefixed "dei:". Kinds:
+#   instant   balance-sheet value at a period end (latest known)
+#   flow_ttm  income/cash-flow value, trailing twelve months built from 10-K/10-Q durations
+#   annual    fiscal-year values, all years kept (growth descriptors)
+items:
+  ni_ttm:
+    kind: flow_ttm
+    unit: USD
+    chain: [NetIncomeLossAvailableToCommonStockholdersBasic, NetIncomeLoss, ProfitLoss]
+    sharadar: netinccmn
+  cfo_ttm:
+    kind: flow_ttm
+    unit: USD
+    chain: [NetCashProvidedByUsedInOperatingActivities,
+            NetCashProvidedByUsedInOperatingActivitiesContinuingOperations]
+    sharadar: ncfo
+  da_ttm:
+    kind: flow_ttm
+    unit: USD
+    chain: [DepreciationDepletionAndAmortization, DepreciationAndAmortization,
+            DepreciationAmortizationAndAccretionNet]
+    sharadar: depamor
+  dps_ttm:                        # fallback only: DTOP reads the implied-dividend feed first
+    kind: flow_ttm
+    unit: USD/shares
+    chain: [CommonStockDividendsPerShareDeclared, CommonStockDividendsPerShareCashPaid]
+    sharadar: dps
+  book_equity:
+    kind: instant
+    unit: USD
+    chain: [StockholdersEquity, StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest]
+    sharadar: equity
+  preferred_equity:
+    kind: instant
+    unit: USD
+    chain: [PreferredStockValue]
+    sharadar: null
+  long_term_debt:
+    kind: instant
+    unit: USD
+    chain: [LongTermDebtNoncurrent, LongTermDebtAndCapitalLeaseObligations, LongTermDebt]
+    sharadar: debtnc
+  current_debt:
+    kind: instant
+    unit: USD
+    chain: [DebtCurrent]
+    fallback_sum: [LongTermDebtCurrent, ShortTermBorrowings, CommercialPaper]
+    sharadar: null
+  total_assets:
+    kind: instant
+    unit: USD
+    chain: [Assets]
+    sharadar: assets
+  revenue_fy:
+    kind: annual
+    unit: USD
+    chain: [Revenues, RevenueFromContractWithCustomerExcludingAssessedTax,
+            RevenueFromContractWithCustomerIncludingAssessedTax, SalesRevenueNet]
+    fallback_sum: [InterestAndDividendIncomeOperating, NoninterestIncome]     # banks
+    sharadar: revenue
+  eps_fy:
+    kind: annual
+    unit: USD/shares
+    chain: [EarningsPerShareBasic, EarningsPerShareBasicAndDiluted, EarningsPerShareDiluted]
+    sharadar: eps
+  shares_wa_fy:
+    kind: annual
+    unit: shares
+    chain: [WeightedAverageNumberOfSharesOutstandingBasic]
+    sharadar: shareswa
+  shares_out:                     # one series per concept; mcap takes the first fresh one in this order
+    kind: instant
+    unit: shares
+    chain: ["dei:EntityCommonStockSharesOutstanding", CommonStockSharesOutstanding,
+            WeightedAverageNumberOfSharesOutstandingBasic, WeightedAverageNumberOfDilutedSharesOutstanding]
+    per_concept: true
+    sharadar: sharesbas
+  public_float:                   # last resort for a share count: float / price (DECISIONS D-011)
+    kind: instant
+    unit: USD
+    chain: ["dei:EntityPublicFloat"]
+    sharadar: null

@@ -1,0 +1,15 @@
+Description:           Daily Index of EDGAR Dissemination Feed
+Last Data Received:    Feb  5, 2024
+Comments:              webmaster@sec.gov
+Anonymous FTP:         ftp://ftp.sec.gov/edgar/
+ 
+CIK|Company Name|Form Type|Date Filed|File Name
+--------------------------------------------------------------------------------
+1000209|MEDALLION FINANCIAL CORP|SC 13G/A|20240205|edgar/data/1000209/0001193125-24-024071.txt
+1000275|ROYAL BANK OF CANADA|424B2|20240205|edgar/data/1000275/0001140361-24-005677.txt
+1000275|ROYAL BANK OF CANADA|424B2|20240205|edgar/data/1000275/0001140361-24-005702.txt
+1000275|ROYAL BANK OF CANADA|424B2|20240205|edgar/data/1000275/0001140361-24-005703.txt
+101829|RTX Corp|10-K|20240205|edgar/data/101829/0000101829-24-000008.txt
+1097864|ON SEMICONDUCTOR CORP|10-K|20240205|edgar/data/1097864/0001628280-24-003201.txt
+1001250|ESTEE LAUDER COMPANIES INC|10-Q|20240205|edgar/data/1001250/0001001250-24-000007.txt
+100493|TYSON FOODS, INC.|10-Q|20240205|edgar/data/100493/0000100493-24-000014.txt

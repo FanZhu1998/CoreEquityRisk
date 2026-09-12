@@ -1,0 +1,56 @@
+[
+ {
+  "Code": "AAC_old1",
+  "Name": "Arcadia Financial Ltd",
+  "Country": "USA",
+  "Exchange": "NYSE",
+  "Currency": "USD",
+  "Type": "Common Stock",
+  "Isin": null
+ },
+ {
+  "Code": "ATVI",
+  "Name": "Activision Blizzard Inc",
+  "Country": "USA",
+  "Exchange": "NASDAQ",
+  "Currency": "USD",
+  "Type": "Common Stock",
+  "Isin": "US00507V1098"
+ },
+ {
+  "Code": "CELG",
+  "Name": "Celgene Corporation",
+  "Country": "USA",
+  "Exchange": "NASDAQ",
+  "Currency": "USD",
+  "Type": "Common Stock",
+  "Isin": "US1510201049"
+ },
+ {
+  "Code": "DOW_old",
+  "Name": "Dow Inc",
+  "Country": "USA",
+  "Exchange": "NYSE",
+  "Currency": "USD",
+  "Type": "Common Stock",
+  "Isin": null
+ },
+ {
+  "Code": "TWTR",
+  "Name": "Twitter Inc",
+  "Country": "USA",
+  "Exchange": "NYSE",
+  "Currency": "USD",
+  "Type": "Common Stock",
+  "Isin": "US90184L1026"
+ },
+ {
+  "Code": "XLNX",
+  "Name": "Xilinx Inc",
+  "Country": "USA",
+  "Exchange": "NASDAQ",
+  "Currency": "USD",
+  "Type": "Common Stock",
+  "Isin": "US9839191015"
+ }
+]

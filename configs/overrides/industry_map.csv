@@ -1,0 +1,84 @@
+sic_lo,sic_hi,industry,note
+# ---- specific codes first ----
+1531,1531,CONSUMER_DURABLES_APPAREL,homebuilders (operative builders)
+2830,2836,PHARMA_BIOTECH,drugs; biologicals; in-vitro diagnostics
+2840,2844,CONSUMER_STAPLES,soaps; detergents; cosmetics
+3021,3021,CONSUMER_DURABLES_APPAREL,footwear
+3410,3412,MATERIALS,metal cans and containers
+3533,3533,ENERGY,oil and gas field machinery
+3570,3579,TECH_HARDWARE,computers; storage; networking gear
+3630,3639,CONSUMER_DURABLES_APPAREL,household appliances
+3660,3669,TECH_HARDWARE,communications equipment
+3674,3674,SEMICONDUCTORS,semiconductors and related devices
+3670,3679,TECH_HARDWARE,electronic components other than semiconductors
+3711,3716,CONSUMER_DURABLES_APPAREL,motor vehicles; bodies; parts
+3751,3751,CONSUMER_DURABLES_APPAREL,motorcycles and bicycles
+3812,3812,CAPITAL_GOODS,defense electronics; navigation
+3825,3825,TECH_HARDWARE,electronic test and measurement
+3826,3826,PHARMA_BIOTECH,laboratory analytical instruments (life-science tools)
+3840,3851,HEALTH_CARE_EQUIP_SERVICES,medical devices and instruments; ophthalmic goods
+3940,3949,CONSUMER_DURABLES_APPAREL,toys and sporting goods
+4400,4499,TRANSPORTATION,water transport (cruise lines via overrides)
+4600,4699,ENERGY,pipelines other than natural gas
+4700,4729,CONSUMER_SERVICES,travel arrangement (online travel)
+4950,4959,COMMERCIAL_SERVICES,sanitary and waste services
+5045,5045,TECH_HARDWARE,computer equipment wholesale
+5047,5047,HEALTH_CARE_EQUIP_SERVICES,medical equipment wholesale
+5065,5065,TECH_HARDWARE,electronic parts wholesale
+5122,5122,HEALTH_CARE_EQUIP_SERVICES,drug wholesale
+5171,5172,ENERGY,petroleum products wholesale
+5331,5331,CONSUMER_STAPLES,variety and warehouse stores
+5400,5499,CONSUMER_STAPLES,food stores
+5812,5813,CONSUMER_SERVICES,restaurants
+6324,6324,HEALTH_CARE_EQUIP_SERVICES,managed care
+6798,6798,REAL_ESTATE,REITs
+7310,7319,COMMUNICATION_SERVICES,advertising agencies
+7370,7379,SOFTWARE_SERVICES,software; IT services; data processing
+7510,7519,TRANSPORTATION,truck and auto rental and leasing (Ryder) [OURS]
+8731,8731,PHARMA_BIOTECH,commercial biological research (CROs)
+# ---- broad ranges ----
+0100,0999,CONSUMER_STAPLES,agriculture
+1000,1099,MATERIALS,metal mining
+1200,1299,ENERGY,coal
+1300,1399,ENERGY,oil and gas extraction and services
+1400,1499,MATERIALS,aggregates and nonmetallic minerals
+1500,1799,CAPITAL_GOODS,construction and engineering
+2000,2199,CONSUMER_STAPLES,food; beverages; tobacco
+2200,2399,CONSUMER_DURABLES_APPAREL,textiles and apparel
+2400,2499,MATERIALS,lumber and wood
+2500,2599,CONSUMER_DURABLES_APPAREL,furniture
+2600,2699,MATERIALS,paper and packaging
+2700,2799,COMMUNICATION_SERVICES,publishing
+2800,2899,MATERIALS,chemicals
+2900,2999,ENERGY,petroleum refining
+3000,3099,MATERIALS,rubber and plastics products
+3100,3199,CONSUMER_DURABLES_APPAREL,leather goods
+3200,3399,MATERIALS,glass; cement; primary metals
+3400,3569,CAPITAL_GOODS,fabricated metal; industrial machinery
+3580,3629,CAPITAL_GOODS,HVAC; service machinery; electrical equipment
+3640,3659,CAPITAL_GOODS,lighting and wiring equipment
+3680,3699,CAPITAL_GOODS,other electrical equipment
+3700,3799,CAPITAL_GOODS,aerospace; defense; rail and other transport equipment
+3800,3899,CAPITAL_GOODS,instruments and controls
+3900,3999,CONSUMER_DURABLES_APPAREL,other manufacturing
+4000,4399,TRANSPORTATION,rail; transit; trucking; courier
+4500,4599,TRANSPORTATION,airlines; air freight
+4730,4799,TRANSPORTATION,freight forwarding and logistics
+4800,4899,COMMUNICATION_SERVICES,telecom; cable; broadcasting
+4900,4999,UTILITIES,electric; gas; water; multi-utilities
+5000,5099,CAPITAL_GOODS,durable goods distributors
+5100,5199,CONSUMER_STAPLES,nondurable goods distributors
+5200,5999,RETAIL,retail trade including e-commerce
+6000,6099,BANKS,banks and savings institutions
+6100,6299,FINANCIAL_SERVICES,consumer finance; brokers; exchanges; asset managers
+6300,6499,INSURANCE,insurance carriers and brokers
+6500,6599,REAL_ESTATE,real estate operators and services
+6700,6799,FINANCIAL_SERVICES,holding and investment offices
+7000,7099,CONSUMER_SERVICES,hotels and casinos
+7200,7299,CONSUMER_SERVICES,personal services
+7300,7399,COMMERCIAL_SERVICES,business services
+7800,7899,COMMUNICATION_SERVICES,film; streaming; entertainment
+7900,7999,CONSUMER_SERVICES,amusement and recreation
+8000,8099,HEALTH_CARE_EQUIP_SERVICES,health services
+8200,8299,CONSUMER_SERVICES,education
+8700,8799,COMMERCIAL_SERVICES,engineering; consulting; research

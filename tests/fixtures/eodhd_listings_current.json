@@ -1,0 +1,74 @@
+[
+ {
+  "Code": "AAPL",
+  "Name": "Apple Inc.",
+  "Country": "USA",
+  "Exchange": "NASDAQ",
+  "Currency": "USD",
+  "Type": "Common Stock",
+  "Isin": "US0378331005"
+ },
+ {
+  "Code": "BRK-B",
+  "Name": "Berkshire Hathaway Inc",
+  "Country": "USA",
+  "Exchange": "NYSE",
+  "Currency": "USD",
+  "Type": "Common Stock",
+  "Isin": "US0846707026"
+ },
+ {
+  "Code": "DOW",
+  "Name": "Dow Inc",
+  "Country": "USA",
+  "Exchange": "NYSE",
+  "Currency": "USD",
+  "Type": "Common Stock",
+  "Isin": "US2605571031"
+ },
+ {
+  "Code": "FB",
+  "Name": "ProShares Trust ProShares S&P 500 Dynamic Buffer ETF",
+  "Country": "USA",
+  "Exchange": "BATS",
+  "Currency": "USD",
+  "Type": "ETF",
+  "Isin": "US74349Y6133"
+ },
+ {
+  "Code": "GOOG",
+  "Name": "Alphabet Inc Class C",
+  "Country": "USA",
+  "Exchange": "NASDAQ",
+  "Currency": "USD",
+  "Type": "Common Stock",
+  "Isin": "US02079K1079"
+ },
+ {
+  "Code": "GOOGL",
+  "Name": "Alphabet Inc Class A",
+  "Country": "USA",
+  "Exchange": "NASDAQ",
+  "Currency": "USD",
+  "Type": "Common Stock",
+  "Isin": "US02079K3059"
+ },
+ {
+  "Code": "META",
+  "Name": "Meta Platforms Inc.",
+  "Country": "USA",
+  "Exchange": "NASDAQ",
+  "Currency": "USD",
+  "Type": "Common Stock",
+  "Isin": "US30303M1027"
+ },
+ {
+  "Code": "MSFT",
+  "Name": "Microsoft Corporation",
+  "Country": "USA",
+  "Exchange": "NASDAQ",
+  "Currency": "USD",
+  "Type": "Common Stock",
+  "Isin": "US5949181045"
+ }
+]

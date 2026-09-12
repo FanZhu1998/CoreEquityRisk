@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EQRisk viewer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>EQRisk</h1>
+  <span id="asof" class="muted"></span>
+</header>
+<nav id="tabs">
+  <button data-page="status" class="active">Status</button>
+  <button data-page="returns">Factor returns</button>
+  <button data-page="risk">Factor risk</button>
+  <button data-page="exposures">Exposures</button>
+  <button data-page="specific">Specific risk</button>
+  <button data-page="analyzer">Portfolio analyzer</button>
+  <button data-page="validation">Validation</button>
+</nav>
+<main>
+  <section id="status" class="page active"></section>
+  <section id="returns" class="page"></section>
+  <section id="risk" class="page"></section>
+  <section id="exposures" class="page"></section>
+  <section id="specific" class="page"></section>
+  <section id="analyzer" class="page"></section>
+  <section id="validation" class="page"></section>
+</main>
+<footer class="muted">Model outputs only; no vendor prices or fundamentals. Monthly-horizon risk, annualized where marked.</footer>
+<script src="analyzer.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
