@@ -1,0 +1,22 @@
+# Starter industries (blueprint Appendix B.1). parent = merge target for the thin-industry rule (4.8).
+industry,parent,covers
+ENERGY,MATERIALS,Oil and gas producers; refiners; services; coal; midstream (via overrides)
+MATERIALS,CAPITAL_GOODS,Chemicals; metals and mining; aggregates; paper and packaging
+CAPITAL_GOODS,TRANSPORTATION,Machinery; electrical equipment; aerospace and defense; construction; distributors
+TRANSPORTATION,CAPITAL_GOODS,Railroads; trucking; airlines; air freight; logistics
+COMMERCIAL_SERVICES,CAPITAL_GOODS,Business and professional services; waste; staffing; consulting
+CONSUMER_DURABLES_APPAREL,RETAIL,Autos and parts; homebuilders; appliances; apparel; footwear; leisure products
+CONSUMER_SERVICES,RETAIL,Restaurants; hotels; casinos; cruise lines; online travel; education
+RETAIL,CONSUMER_SERVICES,Discretionary retail and e-commerce
+CONSUMER_STAPLES,RETAIL,Food; beverages; tobacco; household and personal products; staples retail
+HEALTH_CARE_EQUIP_SERVICES,PHARMA_BIOTECH,Medical devices; providers; managed care; distributors
+PHARMA_BIOTECH,HEALTH_CARE_EQUIP_SERVICES,Pharmaceuticals; biotechnology; life-science tools; CROs
+BANKS,FINANCIAL_SERVICES,Commercial banks; savings institutions
+FINANCIAL_SERVICES,BANKS,Consumer finance; brokers; exchanges; asset managers; payments; data
+INSURANCE,FINANCIAL_SERVICES,Life; P&C; reinsurance; brokers
+REAL_ESTATE,UTILITIES,REITs; real estate services
+SOFTWARE_SERVICES,TECH_HARDWARE,Software; IT services; data processing
+TECH_HARDWARE,SEMICONDUCTORS,Computers; storage; networking; components; test and measurement
+SEMICONDUCTORS,TECH_HARDWARE,Semiconductors and semiconductor equipment
+COMMUNICATION_SERVICES,SOFTWARE_SERVICES,Telecom; cable; media; entertainment; interactive media (via overrides)
+UTILITIES,REAL_ESTATE,Electric; gas; water; multi-utilities; independent power

@@ -1,0 +1,22 @@
+[
+ {
+  "name": "S&P 500 Historical Components & Changes (Updated).csv",
+  "type": "file"
+ },
+ {
+  "name": "S&P 500 Historical Components & Changes.csv",
+  "type": "file"
+ },
+ {
+  "name": "sp500.csv",
+  "type": "file"
+ },
+ {
+  "name": "sp500_changes_since_2019.csv",
+  "type": "file"
+ },
+ {
+  "name": "sp500_ticker_start_end.csv",
+  "type": "file"
+ }
+]

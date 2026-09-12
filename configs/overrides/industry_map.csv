@@ -34,6 +34,7 @@ sic_lo,sic_hi,industry,note
 6798,6798,REAL_ESTATE,REITs
 7310,7319,COMMUNICATION_SERVICES,advertising agencies
 7370,7379,SOFTWARE_SERVICES,software; IT services; data processing
+7510,7519,TRANSPORTATION,truck and auto rental and leasing (Ryder) [OURS]
 8731,8731,PHARMA_BIOTECH,commercial biological research (CROs)
 # ---- broad ranges ----
 0100,0999,CONSUMER_STAPLES,agriculture

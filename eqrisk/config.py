@@ -321,7 +321,9 @@ class PriceQaCfg(_Block):
 class CorpActionQaCfg(_Block):
     split_detect_tol: float
     split_ratio_rel_tol: float
-    max_split_denominator: int
+    split_small_term_max: int
+    split_fraction_max: float
+    split_confirm_window_days: int
     dividend_min_rel: float
     special_dividend_multiple: float
     dividend_lookback_sessions: int
@@ -330,6 +332,28 @@ class CorpActionQaCfg(_Block):
 class QaCfg(_Block):
     prices: PriceQaCfg
     corp_actions: CorpActionQaCfg
+
+
+class SecurityMasterCfg(_Block):
+    min_era_coverage: float
+    name_match_min_similarity: float
+    primary_class_lookback_days: int
+    shares_overrides_file: Path
+    cik_links_file: Path
+    predecessor_gap_days: int
+    filing_slack_days: int
+    share_outlier_factor: float
+    share_outlier_window_days: int
+    public_float_max_age_months: int
+
+
+class FundamentalsCfg(_Block):
+    concepts_file: Path
+    quarter_days: tuple[int, int]
+    half_year_days: tuple[int, int]
+    nine_month_days: tuple[int, int]
+    year_days: tuple[int, int]
+    comparative_tolerance_days: int
 
 
 class ExportSiteCfg(_Block):
@@ -358,6 +382,8 @@ class ModelConfig(_Block):
     specific_risk: SpecificRiskCfg
     gates: GatesCfg
     qa: QaCfg
+    security_master: SecurityMasterCfg
+    fundamentals: FundamentalsCfg
     outputs: OutputsCfg
 
     def config_hash(self) -> str:
@@ -382,7 +408,8 @@ class EodhdCfg(_Block):
     base_url: str
     exchange: str
     requests_per_second: float
-    daily_window_sessions: int
+    prev_buffer_days: int
+    listings_refresh_days: int
 
 
 class DatabentoCfg(_Block):
@@ -408,6 +435,7 @@ class EdgarCfg(_Block):
     www_url: str
     requests_per_second: float
     forms: list[str]
+    cik_lookup_refresh_days: int
 
 
 class FredCfg(_Block):
@@ -440,6 +468,38 @@ class SourcesConfig(_Block):
     fja05680: Fja05680Cfg
     famafrench: FamaFrenchCfg
     sharadar: SharadarCfg
+
+
+# --------------------------------------------------------------------------- #
+# concepts.yaml: Appendix C fundamentals concept map                          #
+# --------------------------------------------------------------------------- #
+
+
+class ConceptItem(_Block):
+    kind: Literal["instant", "flow_ttm", "annual"]
+    unit: str
+    chain: list[str]
+    fallback_sum: list[str] | None = None
+    per_concept: bool = False       # emit one series per concept; the consumer picks by priority
+    sharadar: str | None
+
+
+class ConceptsConfig(_Block):
+    items: dict[str, ConceptItem]
+
+    def concepts(self) -> set[tuple[str, str]]:
+        """(taxonomy, concept) for every concept any item may read."""
+        out = set()
+        for item in self.items.values():
+            for c in [*item.chain, *(item.fallback_sum or [])]:
+                out.add(split_concept(c))
+        return out
+
+
+def split_concept(name: str) -> tuple[str, str]:
+    """'dei:EntityCommonStockSharesOutstanding' -> ('dei', ...); bare names are us-gaap."""
+    tax, _, concept = name.rpartition(":")
+    return (tax or "us-gaap", concept)
 
 
 # --------------------------------------------------------------------------- #
@@ -521,6 +581,7 @@ class Project:
     config: ModelConfig
     sources: SourcesConfig
     settings: Settings
+    concepts: ConceptsConfig
 
     def resolve(self, p: Path | str) -> Path:
         p = Path(p)
@@ -564,10 +625,14 @@ def load_project(root: Path | None = None, config: Path | None = None,
     root = (root or Path.cwd()).resolve()
     config_path = (config or DEFAULT_CONFIG)
     config_path = config_path if config_path.is_absolute() else root / config_path
+    cfg = load_config(config_path, preset)
+    concepts_path = cfg.fundamentals.concepts_file
     return Project(
         root=root,
         config_path=config_path,
-        config=load_config(config_path, preset),
+        config=cfg,
         sources=load_sources(config_path.parent),
         settings=load_settings(root),
+        concepts=ConceptsConfig.model_validate(
+            _read_yaml(concepts_path if concepts_path.is_absolute() else root / concepts_path)),
     )

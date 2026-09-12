@@ -1,0 +1,7 @@
+# Predecessor registrants the automatic name match cannot find (blueprint 4.2; DECISIONS D-008).
+# cik = the issuer's current CIK; predecessor_cik = the registrant that filed before a reorganization.
+# Only link when the listed security (and its share count) continued through the change.
+cik,predecessor_cik,note
+1841666,6769,APA Corp <- Apache Corp (holding-company reorganization 2021)
+1996862,1144519,Bunge Global SA <- Bunge Ltd (redomiciled 2023)
+1792044,1623613,Viatris Inc <- Mylan N.V. (Upjohn combination 2020; MYL renamed VTRS)

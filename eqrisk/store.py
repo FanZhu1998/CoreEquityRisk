@@ -11,6 +11,7 @@ import io
 import os
 import uuid
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 import duckdb
@@ -86,6 +87,32 @@ def raw_partitions(dataset_dir: Path, key: str) -> list[tuple[str, Path]]:
         if d.is_dir() and d.name.startswith(f"{key}="):
             out.append((d.name.split("=", 1)[1], d))
     return sorted(out)
+
+
+def write_dated(df: pl.DataFrame, dataset_dir: Path, as_of: date) -> RawWrite | None:
+    """Reference snapshot for `as_of`. Skipped (returns None) when its bytes equal the latest
+    earlier snapshot, so unchanged reference data does not pile up one copy per day."""
+    earlier = [d for v, d in raw_partitions(dataset_dir, "date") if v < as_of.isoformat()]
+    if earlier:
+        prev = latest_raw(earlier[-1])
+        if prev is not None and prev.read_bytes() == parquet_bytes(df):
+            return None
+    return write_raw(df, dataset_dir / f"date={as_of.isoformat()}")
+
+
+def latest_dated_dir(dataset_dir: Path, as_of: date | None = None) -> tuple[date, Path] | None:
+    parts = [(v, d) for v, d in raw_partitions(dataset_dir, "date")
+             if as_of is None or v <= as_of.isoformat()]
+    if not parts:
+        return None
+    v, d = parts[-1]
+    return date.fromisoformat(v), d
+
+
+def read_dated(dataset_dir: Path, as_of: date | None = None) -> pl.DataFrame | None:
+    """Latest reference snapshot dated on or before `as_of` (latest overall when None)."""
+    hit = latest_dated_dir(dataset_dir, as_of)
+    return read_latest_raw(hit[1]) if hit else None
 
 
 def init_catalog(path: Path) -> None:

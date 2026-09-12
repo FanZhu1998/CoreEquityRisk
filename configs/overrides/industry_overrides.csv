@@ -31,3 +31,7 @@ ECL,2026-09-01,MATERIALS,specialty chemicals
 ADP,2026-09-01,COMMERCIAL_SERVICES,payroll and HR services
 PAYX,2026-09-01,COMMERCIAL_SERVICES,payroll and HR services
 CTAS,2026-09-01,COMMERCIAL_SERVICES,uniform and facility services
+FRC,2022-01-03,BANKS,FDIC filer: no SEC SIC code
+AABA,2017-01-03,SOFTWARE_SERVICES,Altaba (formerly Yahoo): SIC blank after it became a fund
+LVLT,2017-01-03,COMMUNICATION_SERVICES,Level 3: surviving registrant is an LLC without SIC
+TWC,2016-03-01,COMMUNICATION_SERVICES,Time Warner Cable: surviving registrant is an LLC without SIC

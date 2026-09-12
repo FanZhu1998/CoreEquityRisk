@@ -5,7 +5,7 @@ import duckdb
 import polars as pl
 
 from eqrisk.manifest import finish, new_manifest, read_manifests, write_manifest
-from eqrisk.store import latest_raw, refresh_catalog, write_parquet, write_raw
+from eqrisk.store import latest_raw, read_dated, refresh_catalog, write_dated, write_parquet, write_raw
 
 
 def test_raw_writes_are_idempotent_and_vintaged(tmp_path: Path):
@@ -19,6 +19,16 @@ def test_raw_writes_are_idempotent_and_vintaged(tmp_path: Path):
     assert w2.created and w2.vintage == 1 and latest_raw(part) == w2.path
     assert w0.path.read_bytes() == first                          # earlier vintage untouched
     assert not [p for p in part.iterdir() if p.name.endswith(".tmp")]
+
+
+def test_dated_snapshots_skip_unchanged_content(tmp_path: Path):
+    ds = tmp_path / "raw" / "fja05680" / "components"
+    df = pl.DataFrame({"d": [1, 2]})
+    assert write_dated(df, ds, date(2024, 1, 2)) is not None
+    assert write_dated(df, ds, date(2024, 1, 3)) is None                 # same bytes as the earlier snapshot
+    assert write_dated(df.with_columns(pl.col("d") + 1), ds, date(2024, 1, 4)) is not None
+    assert read_dated(ds, date(2024, 1, 3))["d"].to_list() == [1, 2]      # as known on 2024-01-03
+    assert read_dated(ds)["d"].to_list() == [2, 3]
 
 
 def test_manifest_roundtrip(tmp_path: Path):

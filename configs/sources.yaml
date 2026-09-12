@@ -9,8 +9,9 @@ eodhd:
   base_url: https://eodhd.com/api
   exchange: US
   requests_per_second: 10
-  daily_window_sessions: 10       # daily pulls re-fetch this many sessions so a return never
-                                  # mixes two adjusted-close vintages (D-001)
+  prev_buffer_days: 14            # calendar days fetched before `start`, so the first session's
+                                  # previous row comes from the same response (D-001)
+  listings_refresh_days: 7        # symbol lists are ~5 MB; refresh weekly, not daily
 
 databento:                        # metered: every request is priced first (AGENTS.md)
   dataset: EQUS.SUMMARY
@@ -23,6 +24,7 @@ edgar:
   www_url: https://www.sec.gov
   requests_per_second: 8          # SEC allows 10; stay under it
   forms: [10-K, 10-K/A, 10-Q, 10-Q/A, 10-KT, 10-KT/A, 10-QT, 10-QT/A]
+  cik_lookup_refresh_days: 30     # the full name->CIK list is 40 MB
 
 fred:
   base_url: https://api.stlouisfed.org/fred

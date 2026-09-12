@@ -67,7 +67,7 @@ markers = [
 filterwarnings = ["ignore::DeprecationWarning:exchange_calendars.*"]
 
 [tool.ruff]
-line-length = 110
+line-length = 120
 target-version = "py312"
 extend-exclude = ["docs", "notebooks"]
 
