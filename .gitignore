@@ -218,9 +218,30 @@ __marimo__/
 .streamlit/secrets.toml
 
 # --- EQRisk (blueprint rule 6: never commit data or secrets) ---
+
+# Secrets. The plain `.env` is also matched by the Environments block above; these lines cover
+# the variants that a backup, an editor or a second profile creates. tools/check_no_secrets.py
+# enforces the same rule at commit time, by path and by content.
+.env*
+!.env.example
+secrets.yaml
+secrets.yml
+secrets.json
+credentials.json
+apikeys.yaml
+*.pem
+*.pfx
+*.p12
+*.key
+id_rsa
+id_ed25519
+
+# Vendor data, run output and anything derived from them.
 data/
 logs/
 reports/
 site/
+exports/
 *.duckdb
 *.duckdb.wal
+*.parquet

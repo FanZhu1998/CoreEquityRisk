@@ -122,7 +122,8 @@ def run_factor_cov(dates: list[date], Phi: np.ndarray, observed: np.ndarray, nam
         W = Phi[max(0, t + 1 - fc.history_cap_days): t + 1]
         F0d = factor_cov_nw(W, fc.vol.half_life, fc.vol.nw_lags, fc.corr.half_life, fc.corr.nw_lags)
         if fc.eigen.enabled:
-            week = tuple(dates[t].isocalendar()[:2])
+            iso = dates[t].isocalendar()
+            week = (iso.year, iso.week)
             if refresh == "daily" or v_last is None or week != week_last:
                 T_sim, est = _estimator(cfg, W.shape[0])
                 rng = np.random.default_rng(date_seed(model_id, dates[t]))

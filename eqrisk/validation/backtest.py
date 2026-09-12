@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import warnings
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 from typing import Any
@@ -30,9 +31,9 @@ from eqrisk.model.exposures import STYLES
 from eqrisk.model.factor_cov import factor_panel
 from eqrisk.model.panel import Panel, pivot
 from eqrisk.model.regression import COUNTRY, french_correlations
-from eqrisk.pipeline.model_run import factor_order, load_panel
-from eqrisk.pipeline.stage import read_table
+from eqrisk.model.tables import factor_order, load_panel
 from eqrisk.staging.rawio import read_reference
+from eqrisk.store import read_table
 from eqrisk.validation.bias import eigen_bias_battery, forecast_dates, realized, specific_bias
 
 PASS, FAIL, NOT_RUN, INFO = "PASS", "FAIL", "NOT RUN", "INFO"
@@ -332,9 +333,10 @@ def external_checks(fr: pl.DataFrame, french: pl.DataFrame | None, vra: pl.DataF
     rows: list[dict[str, str]] = []
     if french is not None:
         corr = french_correlations(fr, french)
-        rules = {"COUNTRY~Mkt-RF": (f">= {c.french_country_corr_min}", lambda x: x >= c.french_country_corr_min),
-                 "SIZE~SMB": ("negative (SIZE is long large caps)", lambda x: x < 0),
-                 "BOOK_TO_PRICE~HML": ("positive", lambda x: x > 0), "MOMENTUM~Mom": ("positive", lambda x: x > 0)}
+        rules: dict[str, tuple[str, Callable[[float], bool]]] = {
+            "COUNTRY~Mkt-RF": (f">= {c.french_country_corr_min}", lambda x: x >= c.french_country_corr_min),
+            "SIZE~SMB": ("negative (SIZE is long large caps)", lambda x: x < 0),
+            "BOOK_TO_PRICE~HML": ("positive", lambda x: x > 0), "MOMENTUM~Mom": ("positive", lambda x: x > 0)}
         for key, x in corr.items():
             if key in rules:
                 text, rule = rules[key]

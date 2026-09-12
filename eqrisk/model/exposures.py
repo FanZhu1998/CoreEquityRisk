@@ -15,6 +15,7 @@ Per session, over the coverage universe, with every moment taken on the ESTU:
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 from typing import Any
@@ -34,12 +35,17 @@ NONLINEAR = {"NONLINEAR_SIZE": "SIZE", "NONLINEAR_BETA": "BETA"}
 MIN_ESTU = 30          # below this a cross-section cannot be standardized meaningfully
 
 
+def _weights[Name: str](configured: Mapping[Name, float]) -> dict[str, float]:
+    """Configured descriptor weights keyed by name (the config types the keys as a Literal set)."""
+    return {str(k): float(v) for k, v in configured.items()}
+
+
 def style_weights(cfg: ModelConfig) -> dict[str, dict[str, float]]:
     d = cfg.descriptors
     return {"SIZE": {"LNCAP": 1.0}, "BETA": {"HBETA": 1.0}, "MOMENTUM": {"RSTR": 1.0},
-            "RESIDUAL_VOLATILITY": dict(d.resvol.weights), "EARNINGS_YIELD": dict(d.earnings_yield.weights),
-            "GROWTH": dict(d.growth.weights), "DIVIDEND_YIELD": {"DTOP": 1.0}, "BOOK_TO_PRICE": {"BTOP": 1.0},
-            "LEVERAGE": dict(d.leverage.weights), "LIQUIDITY": dict(d.liquidity.weights)}
+            "RESIDUAL_VOLATILITY": _weights(d.resvol.weights), "EARNINGS_YIELD": _weights(d.earnings_yield.weights),
+            "GROWTH": _weights(d.growth.weights), "DIVIDEND_YIELD": {"DTOP": 1.0}, "BOOK_TO_PRICE": {"BTOP": 1.0},
+            "LEVERAGE": _weights(d.leverage.weights), "LIQUIDITY": _weights(d.liquidity.weights)}
 
 
 def orthogonal_targets(cfg: ModelConfig) -> dict[str, list[str]]:

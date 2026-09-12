@@ -11,6 +11,7 @@ outside the ESTU).
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import math
 from dataclasses import dataclass
@@ -40,8 +41,8 @@ def factor_names(industries: list[str]) -> list[str]:
 
 @dataclass
 class DayFit:
-    date: date
-    exposure_date: date
+    date: dt.date                # `date` as a field name shadows the type
+    exposure_date: dt.date      # for the fields below it, so both are qualified
     sids: np.ndarray            # regression sample
     X: np.ndarray               # sample design, columns = factors present
     factors: list[str]          # factors present (country, industries present, styles)

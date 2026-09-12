@@ -10,7 +10,7 @@ import pytest
 
 from eqrisk.config import load_project
 from eqrisk.model.factor_cov import factor_panel, run_factor_cov
-from eqrisk.pipeline.model_run import factor_order
+from eqrisk.model.tables import factor_order
 from eqrisk.validation.bias import eigen_bias_battery, factor_bias
 
 pytestmark = pytest.mark.golden

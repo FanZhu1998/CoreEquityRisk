@@ -9,7 +9,7 @@ import pytest
 
 from eqrisk.config import load_project
 from eqrisk.model.panel import pivot
-from eqrisk.pipeline.model_run import load_panel
+from eqrisk.model.tables import load_panel
 from eqrisk.validation.bias import specific_bias
 
 pytestmark = pytest.mark.golden

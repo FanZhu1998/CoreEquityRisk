@@ -466,3 +466,94 @@ because the blueprint fixes USE4S for v1. Options, left to the owner:
 3. Accept the result for the 21-session horizon.
 
 Revisit after option 1.
+
+## D-023 · Layer boundaries made enforceable; table I/O and panel loading moved down (2026-09-12)
+
+**Observation.** A pre-ship review of the import graph found one edge pointing the wrong way:
+`eqrisk/validation/backtest.py` imported `factor_order` and `load_panel` from
+`eqrisk/pipeline/model_run.py`, and `read_table` from `eqrisk/pipeline/stage.py`, while
+`eqrisk/pipeline/model_run.py` imports `eqrisk/validation/bias.py`. That is a cycle between the
+orchestration and validation packages: re-estimating the model inside the backtest pulled in the
+daily pipeline, and neither package could be imported, tested or replaced without the other.
+
+**Decision.** Move each function to the layer that owns it, with no shims:
+
+| Function | Was | Now | Why |
+|---|---|---|---|
+| `read_table`, `replace_table` | `pipeline/stage.py` | `store.py` (1) | Storage primitives over Parquet, used by both the staging and model stages |
+| `load_panel`, `factor_order` | `pipeline/model_run.py` | `model/tables.py` (4) | Turning staged tables into model inputs is a model concern; the daily run, `validate` and notebooks all need it |
+
+`model/tables.py` is new. Call sites in `pipeline/model_run.py`, `validation/backtest.py` and the
+phase 5–7 golden tests follow the new locations. Behaviour is unchanged: same functions, same
+callers, and the phase acceptance tests reproduce the same numbers.
+
+**Enforcement.** `tests/test_architecture.py` reads the imports of every module in `eqrisk/` and
+`app/` and fails on: an import pointing at a higher layer; a kernel importing anything but numpy
+and its siblings; anything in `eqrisk/` importing streamlit, plotly or `app/`; the UI importing
+outside its published read surface; and the UI calling a write function. A module in a new
+top-level package fails the completeness test until it is placed in the layer map. The layers are
+
+```text
+kernels(0) <- config/log/ids/calendar/manifest/store/frames(1) <- sources(2) <- staging(3)
+          <- model(4) <- analytics/validation/optimize(5) <- pipeline(6) <- cli(7)
+```
+
+**Also in this pass.**
+
+- `eqrisk/frames.py` (new, layer 1): `as_float`, `as_int`, `as_str` for reading one value out of a
+  polars frame. `Series.max()` and friends are typed as any Python scalar, so the 15 report and
+  manifest sites that need a number now say so and raise on an empty column instead of relying on
+  `or 0.0`.
+- `validation/bias.py`: `specific_bias` returns a `SpecificBias` TypedDict rather than
+  `dict[str, float | dict[int, float]]`, so `["overall"]` is a float and `["by_decile"]` a mapping.
+- `model/regression.py`: `DayFit.date` shadowed the `date` type for the fields declared after it.
+  Both date fields are now `dt.date`. `typing.get_type_hints` resolved it correctly (annotations are
+  evaluated in module scope), so this was a readability and static-analysis fix, not a live bug.
+- `model/factor_cov.py`: the weekly eigen-refresh key is `(iso.year, iso.week)` instead of a slice
+  of the ISO namedtuple, which typed as a variable-length tuple.
+- `cli.py`: the ingest manifest status is annotated `RunStatus`, so an invalid status fails the type
+  check rather than being written to a manifest.
+- `mypy` now passes on all of `eqrisk` (62 modules) and `app` (22 modules), not only on
+  `eqrisk/kernels`. Relaxations are per module and stated in `pyproject.toml`: untyped third-party
+  libraries, and the two blueprint-verbatim optimizer modules whose signatures the blueprint
+  supplies without annotations.
+
+## D-024 · API keys: kept local by path, by content and by history (2026-09-12)
+
+**Observation.** A GitHub remote is configured (`origin`), so anything committed is one `git push`
+from being published. `.env` itself was ignored and no secret had ever been committed, but three
+gaps remained: `.gitignore` matched only the exact name `.env`, so `.env.local` or a `.env.bak`
+left by an editor was committable; nothing stopped a key being pasted into a notebook, a doc or a
+config file, where no filename rule applies; and `pre-commit` was a dev dependency with no
+configuration, so no check ran at commit time.
+
+**Decision.** Three independent layers, because each catches a different mistake.
+
+1. **Paths.** `.gitignore` now covers `.env*` (with `!.env.example`), `secrets.*`,
+   `credentials.json`, `apikeys.yaml`, `*.pem`, `*.pfx`, `*.p12`, `*.key`, SSH private keys,
+   `exports/` and `*.parquet`, alongside the existing `data/`, `logs/`, `reports/` and `site/`.
+2. **Content.** `tools/check_no_secrets.py` reads the values out of the local `.env` and refuses a
+   commit whose staged content contains any of them — including the contact address inside
+   `SEC_USER_AGENT`, which may appear only in that variable and in git authorship. It also matches
+   credential shapes for keys that are not on this machine (vendor token in a URL, quoted or bare
+   API-key literal, `sk-`/`gh*_` tokens, AWS key ids, PEM private keys). Failure messages name the
+   file and the variable and never print the value, so a blocked commit is safe to paste into a
+   terminal, a log or a chat. `--all` scans every tracked file and `--history` every blob in every
+   commit on every ref.
+3. **Enforcement.** `.pre-commit-config.yaml` runs that guard on every commit, plus ruff, mypy and
+   the architecture test. Installed with `uv run pre-commit install`; all hooks use
+   `language: system`, so they need no downloads and behave the same in CI.
+
+`tests/tools/test_check_no_secrets.py` covers both directions: 15 forbidden paths and 8 leaked
+contents are blocked, 7 ordinary lines (including `{"api_token": self._key.get_secret_value()}`,
+which is how an adapter is supposed to read a key) are not flagged, and no message echoes a secret.
+
+**Verified.** `--history` over all 235 objects on every ref reports no secret and no vendor data has
+ever been committed. A real `git commit` carrying a `.env` value was rejected by the hook, and a
+forced `git add .env` was refused on both the path and the content rule. `.env.example` documents
+the five variables by name, with no values.
+
+**Unchanged and still true.** Keys live only in `.env`, reach the code as pydantic `SecretStr`, and
+travel as query parameters that `eqrisk/sources/base.py::safe_url` strips from every exception and
+log line (`tests/sources/test_http_base.py`). The Studio reports each key as configured or missing
+and never reads its value. `httpx` loggers are pinned to WARNING so no request URL is logged.

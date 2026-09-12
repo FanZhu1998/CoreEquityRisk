@@ -101,3 +101,22 @@ warn_unused_ignores = true
 # statements. Only that one check is relaxed, only for this module (DECISIONS D-002).
 module = "eqrisk.kernels.reference"
 warn_return_any = false
+
+[[tool.mypy.overrides]]
+# Third-party libraries that ship neither stubs nor a py.typed marker.
+module = ["exchange_calendars.*", "riskfolio.*", "pandas.*", "streamlit.*", "plotly.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# cvxpy builds its expression API at import time, so cp.sum_squares, cp.abs and cp.norm1 are
+# invisible to a static checker even though cvxpy is installed.
+module = "cvxpy.*"
+follow_imports = "skip"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Blueprint section 12 and Appendix A.3 verbatim, like the ruff per-file-ignores above: the
+# blueprint's own signatures carry no annotations. Relaxed here rather than editing code that is
+# kept byte-identical to the reference and covered by tests/optimize (DECISIONS D-002, D-023).
+module = ["eqrisk.optimize.factor_form", "eqrisk.optimize.riskfolio_adapter"]
+disable_error_code = ["no-untyped-def", "no-untyped-call"]

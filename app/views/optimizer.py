@@ -31,7 +31,9 @@ if st.button("Optimize"):
         if method.startswith("Factor"):
             from eqrisk.optimize.factor_form import optimize_active
 
-            w, status = optimize_active(snap.X, snap.F, snap.spec_var, w_b, alpha=alpha, te_max_ann=te / 100,
+            # optimize_active is blueprint Appendix A.3 verbatim, so it carries no annotations.
+            w, status = optimize_active(snap.X, snap.F, snap.spec_var, w_b,  # type: ignore[no-untyped-call]
+                                        alpha=alpha, te_max_ann=te / 100,
                                         style_idx=styles, style_bound=style_band, ind_idx=inds, ind_bound=ind_band,
                                         w_max=w_max, w_prev=w_b, turnover_max=turnover)
         else:

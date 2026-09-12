@@ -14,29 +14,20 @@ import polars as pl
 
 from eqrisk.calendar import get_calendar
 from eqrisk.config import Project
+from eqrisk.frames import as_float, as_int
 from eqrisk.log import get_logger
 from eqrisk.model.descriptors import DESCRIPTORS, compute_descriptors
 from eqrisk.model.exposures import FUNDAMENTAL_STYLES, STYLES, build_exposures
 from eqrisk.model.factor_cov import FactorCovResult, factor_panel, run_factor_cov
-from eqrisk.model.panel import Panel, build_panel, pivot
+from eqrisk.model.panel import Panel, pivot
 from eqrisk.model.regression import RegressionResult, french_correlations, run_regressions
 from eqrisk.model.specific_risk import SpecificRiskResult, run_specific_risk
-from eqrisk.pipeline.stage import read_table, replace_table
+from eqrisk.model.tables import factor_order, load_panel
 from eqrisk.staging.rawio import read_reference
-from eqrisk.store import refresh_catalog, upsert_dates
+from eqrisk.store import read_table, refresh_catalog, replace_table, upsert_dates
 from eqrisk.validation.bias import eigen_bias_battery, factor_bias, specific_bias
 
 log = get_logger(__name__)
-
-
-def load_panel(project: Project, end: date | None = None) -> tuple[Panel, dict[str, pl.DataFrame]]:
-    s = project.staged_dir
-    t = {n: read_table(s, n) for n in ("prices", "mcap", "universe", "rf", "security_master", "fundamentals_pit")}
-    last = t["universe"]["date"].max()
-    assert isinstance(last, date)
-    end = min(end, last) if end else last
-    sessions = get_calendar(project.config.calendar).sessions(project.config.history.price_start, end)
-    return build_panel(t["prices"], t["mcap"], t["universe"], t["rf"], sessions), t
 
 
 def descriptor_frame(P: Panel, desc: dict[str, np.ndarray], t0: int) -> pl.DataFrame:
@@ -90,19 +81,14 @@ def regression_report(res: RegressionResult, french: pl.DataFrame) -> dict[str, 
     shocks = res.factor_returns.filter(pl.col("f_over_sigma").abs() > 6)
     return {
         "days_ok": st.height, "days_skipped": res.stats.height - st.height,
-        "constraint_resid_max": float(st["constraint_resid"].max() or 0.0),
-        "cond_max": float(st["cond"].max() or 0.0), "r2_mean": float(st["r2_w"].mean() or 0.0),
-        "n_min": int(st["n"].min() or 0),
+        "constraint_resid_max": as_float(st["constraint_resid"].max(), 0.0),
+        "cond_max": as_float(st["cond"].max(), 0.0), "r2_mean": as_float(st["r2_w"].mean(), 0.0),
+        "n_min": as_int(st["n"].min(), 0),
         "corr_country_vs_capweighted_estu": float(np.corrcoef(mk["f"], mk["mkt"])[0, 1]),
-        "country_minus_mkt_abs_max_bp": float(mk["country_minus_mkt"].abs().max() or 0.0) * 1e4,
+        "country_minus_mkt_abs_max_bp": as_float(mk["country_minus_mkt"].abs().max(), 0.0) * 1e4,
         "factor_shocks_over_6sd": shocks.height,
         "french": {k: round(v, 3) for k, v in french_correlations(res.factor_returns, french).items()},
     }
-
-
-def factor_order(fr: pl.DataFrame) -> list[str]:
-    inds = sorted(set(fr["factor"].unique().to_list()) - {"COUNTRY"} - set(STYLES))
-    return ["COUNTRY", *inds, *STYLES]
 
 
 def run_factor_cov_stage(project: Project, end: date | None = None, refresh: str | None = None) -> dict[str, Any]:
@@ -144,8 +130,8 @@ def factor_cov_report(dates: list[date], Phi: np.ndarray, observed: np.ndarray, 
         "factor_bias_2020_2021_inside_0.85_1.15": f"{inside.height}/{fb.height}",
         "factor_bias_outside": {r["factor"]: round(r["bias"], 3) for r in fb.filter(
             ~pl.col("bias").is_between(0.85, 1.15)).iter_rows(named=True)},
-        "eigen_smallest10_bias_before_after": [round(float(eb["bias_before"][:10].mean()), 3),
-                                               round(float(eb["bias_after"][:10].mean()), 3)],
+        "eigen_smallest10_bias_before_after": [round(as_float(eb["bias_before"][:10].mean()), 3),
+                                               round(as_float(eb["bias_after"][:10].mean()), 3)],
     }
 
 
@@ -178,7 +164,9 @@ def specific_report(P: Panel, U: np.ndarray, res: SpecificRiskResult, horizon: i
     full = specific_bias(P.dates, U, res.final, P["capw"], P["in_estu"], res.decile, horizon, *window)
     ts = specific_bias(P.dates, U, res.ts_only, P["capw"], P["in_estu"], res.decile, horizon, *window)
     vra = res.vra
-    spread = lambda by: max(by.values()) - min(by.values()) if by else float("nan")  # noqa: E731
+    def spread(by: dict[int, float]) -> float:
+        return max(by.values()) - min(by.values()) if by else float("nan")
+
     return {
         "forecast_rows": ann.height, "first": str(t["date"].min()), "last": str(t["date"].max()),
         "coverage_finite_min": round(float(min(cov_days)), 4),
@@ -191,7 +179,7 @@ def specific_report(P: Panel, U: np.ndarray, res: SpecificRiskResult, horizon: i
         "decile_bias_full": {k: round(v, 3) for k, v in full["by_decile"].items()},
         "decile_bias_ts_only": {k: round(v, 3) for k, v in ts["by_decile"].items()},
         "decile_spread_full_vs_ts": [round(spread(full["by_decile"]), 3), round(spread(ts["by_decile"]), 3)],
-        "gamma_below_1_share": round(float((t["gamma"] < 1).mean()), 4),
+        "gamma_below_1_share": round(as_float((t["gamma"] < 1).mean()), 4),
     }
 
 

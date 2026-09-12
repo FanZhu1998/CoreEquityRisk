@@ -41,12 +41,41 @@ uv run pytest                            # full test suite (live tests deselecte
 uv run pytest -m "not golden"            # unit tests only (golden = §17 acceptance on data/)
 uv run pytest -m golden                  # phase acceptance tests on the development data
 uv run pytest -m live                    # tests that call vendor APIs
-uv run ruff check . && uv run mypy --strict eqrisk/kernels
+uv run ruff check . && uv run mypy eqrisk app   # strict; relaxations in pyproject
 uv run eqrisk --help                     # CLI (§13.1)
 uv run eqrisk run-daily                  # daily catch-up with gates (docs/RUNBOOK.md)
 uv run eqrisk validate                   # bias battery and §1.3 scorecard -> reports/
 uv run eqrisk ui / export-site           # Streamlit workbench / static viewer in site/
+uv run python tools/check_no_secrets.py  # commit guard: --all tracked files, --history all commits
+uv run pre-commit install                # install the ruff, mypy, layer and secret hooks
 ```
+
+## Boundaries (D-023)
+
+An import may only point at a lower layer; `tests/test_architecture.py` fails the build otherwise.
+
+```text
+kernels(0) <- config/log/ids/calendar/manifest/store/frames(1) <- sources(2) <- staging(3)
+          <- model(4) <- analytics/validation/optimize(5) <- pipeline(6) <- cli(7)
+```
+
+- Shared code moves *down* into a lower layer. Never import upwards, and never import `pipeline/`
+  from `validation/` or `model/`.
+- A new top-level module or package must be added to the layer map in that test.
+- Nothing in `eqrisk/` may import streamlit, plotly or `app/`.
+- `app/` reads model outputs through `eqrisk.model.snapshot.ModelStore` (plus `analytics`,
+  `optimize` and the read-only status helpers the test lists) and runs everything else as an
+  `eqrisk` CLI job. The UI never writes to the store.
+- Reading one value out of a polars frame goes through `eqrisk/frames.py` (`as_float`, `as_int`,
+  `as_str`), not a bare `float(df["x"].max() or 0.0)`.
+
+## Secrets (D-024)
+
+Keys live only in `.env`, reach the code as `SecretStr`, and are stripped from every log line and
+exception message by `eqrisk/sources/base.py::safe_url`. Never print a key, never write one into a
+manifest, report or page, and never put the `SEC_USER_AGENT` contact address anywhere but that
+variable and git authorship. `tools/check_no_secrets.py` blocks a commit that breaks this, by path
+and by content; run it with `--history` after any history rewrite.
 
 While a long `eqrisk` command runs in the background it holds `.venv\Scripts\eqrisk.exe`;
 use `uv run --no-sync ...` for anything else until it finishes.

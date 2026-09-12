@@ -12,7 +12,7 @@ import typer
 
 from eqrisk.config import DEFAULT_CONFIG, PRESET_NAMES, Project, load_config, load_project
 from eqrisk.log import configure_logging
-from eqrisk.manifest import finish, new_manifest, write_manifest
+from eqrisk.manifest import RunStatus, finish, new_manifest, write_manifest
 from eqrisk.sources.base import IngestReport
 from eqrisk.store import init_catalog
 
@@ -56,7 +56,7 @@ def _run_manifest(project: Project, command: str, as_of: date | None, reports: l
                      config_hash=project.config.config_hash(),
                      industry_scheme_version=project.config.industries.scheme_version, as_of=as_of)
     m = m.model_copy(update={"counts": {"ingest": [r.as_dict() for r in reports]}})
-    status = "FAILED" if any(r.errors for r in reports) else "OK"
+    status: RunStatus = "FAILED" if any(r.errors for r in reports) else "OK"
     write_manifest(finish(m, status), project.model_dir)
 
 

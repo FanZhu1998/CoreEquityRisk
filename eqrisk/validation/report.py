@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 import polars as pl
 
+from eqrisk.frames import as_float
 from eqrisk.validation.backtest import ValidationResult
 
 LAYERS = {"pre": "Layers 1-2 (EWMA + Newey-West)", "post": "Layers 1-3 (+ eigenfactor adjustment)",
@@ -38,9 +39,10 @@ def _rows(rows: list[dict[str, str]]) -> str:
 def _family_line(df: pl.DataFrame) -> str:
     if df.height == 0:
         return "no portfolios with enough periods"
-    return (f"{df.height} portfolios: mean bias {df['bias'].mean():.3f}, "
-            f"{df['inside'].mean():.0%} inside their 95% band, mean MRAD {df['mrad'].mean():.3f}, "
-            f"mean QLIKE {df['qlike'].mean():.3f}")
+    return (f"{df.height} portfolios: mean bias {as_float(df['bias'].mean()):.3f}, "
+            f"{as_float(df['inside'].mean()):.0%} inside their 95% band, "
+            f"mean MRAD {as_float(df['mrad'].mean()):.3f}, "
+            f"mean QLIKE {as_float(df['qlike'].mean()):.3f}")
 
 
 def _deciles(res: ValidationResult) -> pl.DataFrame:
@@ -84,7 +86,7 @@ def write_report(res: ValidationResult, out: Path) -> Path:
 
     fig, ax = plt.subplots(figsize=(11, 4))
     for label, (dates, series) in res.rolling.items():
-        ax.plot(dates, series, label=label, lw=1.2)
+        ax.plot(dates, series, label=label, lw=1.2)   # type: ignore[arg-type]  # matplotlib stubs: list[date]
     ax.axhline(1.0, color="black", lw=0.8)
     ax.set_ylabel("rolling bias statistic")
     ax.set_title("Rolling bias over non-overlapping periods")
@@ -165,8 +167,8 @@ def write_report(res: ValidationResult, out: Path) -> Path:
         "",
         f"![eigen smile]({figs['eigen']})",
         "",
-        f"Smallest ten eigenfactors: mean bias {e10['bias_before'].mean():.3f} before, "
-        f"{e10['bias_after'].mean():.3f} after the adjustment.",
+        f"Smallest ten eigenfactors: mean bias {as_float(e10['bias_before'].mean()):.3f} before, "
+        f"{as_float(e10['bias_after'].mean()):.3f} after the adjustment.",
         "",
         md_table(e),
         "",

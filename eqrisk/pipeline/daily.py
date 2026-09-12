@@ -35,7 +35,7 @@ _TOP_MOVES = 3
 
 
 def now_et() -> datetime:
-    import pandas as pd  # type: ignore[import-untyped]
+    import pandas as pd
 
     now: datetime = pd.Timestamp.now(tz=_ET).to_pydatetime()
     return now

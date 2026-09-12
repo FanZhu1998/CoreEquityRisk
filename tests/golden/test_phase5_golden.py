@@ -10,7 +10,7 @@ import pytest
 from eqrisk.config import load_project
 from eqrisk.model.exposures import STYLES
 from eqrisk.model.regression import fit_day, french_correlations
-from eqrisk.pipeline.model_run import load_panel
+from eqrisk.model.tables import load_panel
 from eqrisk.staging.rawio import read_reference
 
 pytestmark = pytest.mark.golden

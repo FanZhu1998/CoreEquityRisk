@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import os
+import shutil
 import uuid
 from dataclasses import dataclass
 from datetime import date
@@ -39,6 +40,30 @@ def atomic_write_bytes(data: bytes, path: Path) -> None:
 
 def write_parquet(df: pl.DataFrame, path: Path) -> None:
     atomic_write_bytes(parquet_bytes(df), path)
+
+
+def read_table(base_dir: Path, name: str) -> pl.DataFrame:
+    """Read a whole derived table (one file, or year= parts) into memory."""
+    root = base_dir / name
+    if not root.exists():
+        raise FileNotFoundError(f"table {name!r} is missing under {base_dir}; "
+                                "run `eqrisk backfill` for the stage that writes it")
+    return pl.scan_parquet(str(root / "**" / "*.parquet"), hive_partitioning=False).collect()
+
+
+def replace_table(df: pl.DataFrame, table_dir: Path, by_year: str | None = None) -> None:
+    """Write a fresh copy beside the old one, then swap directories (derived data)."""
+    tmp = table_dir.with_name(f".{table_dir.name}.{uuid.uuid4().hex[:8]}.new")
+    if by_year:
+        for part in df.with_columns(_y=pl.col(by_year).dt.year()).partition_by("_y", maintain_order=True):
+            write_parquet(part.drop("_y"), tmp / f"year={part['_y'][0]}" / "data.parquet")
+    else:
+        write_parquet(df, tmp / f"{table_dir.name}.parquet")
+    old = table_dir.with_name(f".{table_dir.name}.{uuid.uuid4().hex[:8]}.old")
+    if table_dir.exists():
+        table_dir.rename(old)
+    tmp.rename(table_dir)
+    shutil.rmtree(old, ignore_errors=True)
 
 
 @dataclass(frozen=True)

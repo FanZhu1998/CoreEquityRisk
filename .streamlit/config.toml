@@ -1,0 +1,38 @@
+# EQRisk Studio look: the dark navy palette of fan-zhu.com (fanzhu-site/assets/css/style.css).
+# Applies to every Streamlit app started from the project folder (Studio and `eqrisk ui`).
+
+[server]
+headless = true
+runOnSave = false
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"
+
+[theme]
+base = "dark"
+primaryColor = "#7dabdd"
+backgroundColor = "#080e18"
+secondaryBackgroundColor = "#121d2e"
+textColor = "#e8eef7"
+linkColor = "#7dabdd"
+borderColor = "#1f2b3d"
+dataframeBorderColor = "#1a273a"
+dataframeHeaderBackgroundColor = "#0d1523"
+showWidgetBorder = true
+baseRadius = "4px"
+buttonRadius = "4px"
+font = "Inter, 'Segoe UI', system-ui, sans-serif"
+headingFont = "'Libre Franklin', 'Franklin Gothic Medium', 'Segoe UI', sans-serif"
+codeFont = "'IBM Plex Mono', Consolas, monospace"
+greenColor = "#46bf94"
+redColor = "#e5776c"
+blueColor = "#7dabdd"
+chartCategoricalColors = ["#7dabdd", "#46bf94", "#e5776c", "#a7c8ee", "#e2b86b", "#628ab8", "#b0d2f0", "#c39bd3", "#7f92a9", "#4d8bc4"]
+
+[theme.sidebar]
+backgroundColor = "#0d1523"
+secondaryBackgroundColor = "#121d2e"
+textColor = "#e8eef7"

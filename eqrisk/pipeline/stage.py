@@ -11,8 +11,6 @@ from __future__ import annotations
 import functools
 import hashlib
 import json
-import shutil
-import uuid
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -21,6 +19,7 @@ import polars as pl
 
 from eqrisk.calendar import TradingCalendar, get_calendar
 from eqrisk.config import Project, split_concept
+from eqrisk.frames import as_float, as_int
 from eqrisk.log import get_logger
 from eqrisk.staging import fundamentals_pit as fpit
 from eqrisk.staging.corp_actions import unconfirmed_splits
@@ -38,7 +37,7 @@ from eqrisk.staging.security_master import (
     resolve,
 )
 from eqrisk.staging.universe import build_universe, members_by_sid
-from eqrisk.store import atomic_write_bytes, refresh_catalog, write_parquet
+from eqrisk.store import atomic_write_bytes, refresh_catalog, replace_table, write_parquet
 
 log = get_logger(__name__)
 
@@ -48,28 +47,6 @@ STAGED_TABLES: dict[str, str | None] = {
     "exceptions": None, "membership": "date", "rf": None, "prices": "date", "fundamentals_pit": None,
     "mcap": "date", "industry": None, "universe": "date",
 }
-
-
-def replace_table(df: pl.DataFrame, table_dir: Path, by_year: str | None = None) -> None:
-    """Write a fresh copy beside the old one, then swap directories (staged data is derived)."""
-    tmp = table_dir.with_name(f".{table_dir.name}.{uuid.uuid4().hex[:8]}.new")
-    if by_year:
-        for part in df.with_columns(_y=pl.col(by_year).dt.year()).partition_by("_y", maintain_order=True):
-            write_parquet(part.drop("_y"), tmp / f"year={part['_y'][0]}" / "data.parquet")
-    else:
-        write_parquet(df, tmp / f"{table_dir.name}.parquet")
-    old = table_dir.with_name(f".{table_dir.name}.{uuid.uuid4().hex[:8]}.old")
-    if table_dir.exists():
-        table_dir.rename(old)
-    tmp.rename(table_dir)
-    shutil.rmtree(old, ignore_errors=True)
-
-
-def read_table(staged_dir: Path, name: str) -> pl.DataFrame:
-    root = staged_dir / name
-    if not root.exists():
-        raise FileNotFoundError(f"staged table {name!r} is missing; run `eqrisk backfill --stage stage`")
-    return pl.scan_parquet(str(root / "**" / "*.parquet"), hive_partitioning=False).collect()
 
 
 def _available_fn(cal: TradingCalendar, lag_sessions: int) -> functools._lru_cache_wrapper[date]:
@@ -237,8 +214,8 @@ def staging_report(t: dict[str, pl.DataFrame]) -> dict[str, Any]:
         "sids": t["security_master"].height, "eras": t["ticker_history"].height,
         "predecessor_links": int((t["issuer_ciks"]["role"] != "primary").sum()),
         "exceptions": dict(t["exceptions"].group_by("issue").len().sort("issue").iter_rows()),
-        "coverage_per_day": [int(per_day["cov"].min()), int(per_day["cov"].max())],
-        "estu_per_day": [int(per_day["estu"].min()), int(per_day["estu"].max())],
+        "coverage_per_day": [as_int(per_day["cov"].min(), 0), as_int(per_day["cov"].max(), 0)],
+        "estu_per_day": [as_int(per_day["estu"].min(), 0), as_int(per_day["estu"].max(), 0)],
         "exclusions_last_day": dict(u.filter(pl.col("date") == last).group_by("exclusion_reason").len()
                                     .drop_nulls("exclusion_reason").iter_rows()),
         "exclusions_all": dict(u.group_by("exclusion_reason").len().drop_nulls("exclusion_reason").iter_rows()),
@@ -247,7 +224,7 @@ def staging_report(t: dict[str, pl.DataFrame]) -> dict[str, Any]:
         "price_flags": dict(px.group_by("price_flag").len().drop_nulls("price_flag").iter_rows()),
         "actions": dict(px.group_by("action").len().filter(pl.col("action") != "").iter_rows()),
         "mcap_flags": dict(mc.group_by("mcap_flag").len().drop_nulls("mcap_flag").iter_rows()),
-        "max_mcap": float(mc["mcap_issuer"].max() or 0.0),
+        "max_mcap": as_float(mc["mcap_issuer"].max(), 0.0),
         "fundamentals_rows": t["fundamentals_pit"].height,
         "fundamentals_issuers": t["fundamentals_pit"]["cik"].n_unique(),
     }

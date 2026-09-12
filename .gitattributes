@@ -1,0 +1,18 @@
+# One canonical line ending in the repository, whatever the checkout platform.
+# Without this, an editor or a script that rewrites a file on Windows turns every line of the
+# diff over and hides the real change.
+* text=auto eol=lf
+
+# Windows needs CRLF in files the shell interprets line by line.
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# Never translated, never diffed as text.
+*.parquet binary
+*.npz     binary
+*.zip     binary
+*.png     binary
+*.jpg     binary
+*.ico     binary
+*.duckdb  binary

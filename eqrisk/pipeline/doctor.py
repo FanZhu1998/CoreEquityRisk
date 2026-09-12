@@ -8,6 +8,7 @@ from datetime import date, timedelta
 import polars as pl
 
 from eqrisk.config import Project
+from eqrisk.frames import as_str
 from eqrisk.sources.base import SourceError
 from eqrisk.sources.databento_px import DatabentoPrices
 from eqrisk.sources.edgar import Edgar
@@ -67,7 +68,7 @@ def run_doctor(project: Project, today: date | None = None) -> list[dict[str, st
 
     try:
         ff = FamaFrenchDaily(src).fetch(today - timedelta(days=4 * _PROBE_DAYS), today)
-        add("ken french", "ok", f"latest {ff['date'].max()}")
+        add("ken french", "ok", f"latest {as_str(ff['date'].max())}")
     except SourceError as exc:
         add("ken french", "fail", str(exc))
 

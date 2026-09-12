@@ -8,6 +8,7 @@ spaced `horizon` sessions apart, so the standardized returns do not overlap.
 from __future__ import annotations
 
 from datetime import date
+from typing import TypedDict
 
 import numpy as np
 import polars as pl
@@ -49,8 +50,17 @@ def factor_bias(dates: list[date], Phi: np.ndarray, observed: np.ndarray, F: dic
     return pl.DataFrame(rows)
 
 
+class SpecificBias(TypedDict):
+    """Cap-weighted standardized-return dispersion: 1.0 means forecasts were right."""
+
+    overall: float
+    n: float
+    dates: float
+    by_decile: dict[int, float]
+
+
 def specific_bias(dates: list[date], U: np.ndarray, sigma: np.ndarray, capw: np.ndarray, estu: np.ndarray,
-                  group: np.ndarray, horizon: int, start: date, end: date) -> dict[str, float | dict[int, float]]:
+                  group: np.ndarray, horizon: int, start: date, end: date) -> SpecificBias:
     """Cap-weighted bias statistic of standardized specific returns pooled over ESTU names and
     non-overlapping forecast dates, overall and per size decile (§9, §11.2 family g)."""
     avail = {d for t, d in enumerate(dates) if np.isfinite(sigma[t]).any()}
@@ -70,8 +80,9 @@ def specific_bias(dates: list[date], U: np.ndarray, sigma: np.ndarray, capw: np.
         mu = float((wt * x).sum())
         return float(np.sqrt((wt * (x - mu) ** 2).sum()))
 
-    return {"overall": wstd(b, w), "n": float(len(b)), "dates": float(len(ts)),
-            "by_decile": {int(k): wstd(b[g == k], w[g == k]) for k in np.unique(g) if (g == k).sum() > 10}}
+    return SpecificBias(overall=wstd(b, w), n=float(len(b)), dates=float(len(ts)),
+                        by_decile={int(k): wstd(b[g == k], w[g == k])
+                                   for k in np.unique(g) if (g == k).sum() > 10})
 
 
 def eigen_bias_battery(dates: list[date], Phi: np.ndarray, pre: dict[date, np.ndarray], post: dict[date, np.ndarray],
