@@ -115,6 +115,58 @@ def read_dated(dataset_dir: Path, as_of: date | None = None) -> pl.DataFrame | N
     return read_latest_raw(hit[1]) if hit else None
 
 
+def upsert_dates(df: pl.DataFrame, table_dir: Path, dates: list[date], by_year: bool,
+                 date_col: str = "date") -> None:
+    """Replace the rows of `dates` in a derived table with `df`, which holds only those dates (an
+    empty frame, even one without columns, deletes them).
+
+    Year-partitioned tables get one file per date, `year=YYYY/day=YYYY-MM-DD.parquet`, until
+    `compact_month` merges them. A date already stored elsewhere (the backfill's `data.parquet`,
+    a month file) is removed from that file first, so every date lives in exactly one file.
+    Single-file tables are rewritten whole. Rows within a date keep the order of `df`.
+    """
+    days = sorted(set(dates))
+    if not by_year:
+        path = table_dir / f"{table_dir.name}.parquet"
+        keep = pl.read_parquet(path).filter(~pl.col(date_col).is_in(days)) if path.exists() else None
+        parts = [keep, df] if keep is not None else [df]
+        write_parquet(pl.concat(parts, how="diagonal_relaxed").sort(date_col, maintain_order=True), path)
+        return
+    for d in days:
+        ydir = table_dir / f"year={d.year}"
+        target = ydir / f"day={d.isoformat()}.parquet"
+        for f in sorted(ydir.glob("*.parquet")) if ydir.exists() else []:
+            if f != target and (pl.read_parquet(f, columns=[date_col])[date_col] == d).any():
+                rest = pl.read_parquet(f).filter(pl.col(date_col) != d)
+                if rest.height:
+                    write_parquet(rest, f)
+                else:
+                    f.unlink()
+        part = df.filter(pl.col(date_col) == d) if date_col in df.columns else df   # no column: no rows
+        if part.height:
+            write_parquet(part, target)
+        elif target.exists():
+            target.unlink()
+
+
+def compact_month(table_dir: Path, month: str, date_col: str = "date") -> int:
+    """Merge a year-partitioned table's day files for `month` (YYYY-MM) into
+    `year=YYYY/month=YYYY-MM.parquet`; returns the number of day files merged. Idempotent: rows of
+    those days already in the month file (an interrupted earlier run) are replaced, not doubled."""
+    ydir = table_dir / f"year={month[:4]}"
+    day_files = sorted(ydir.glob(f"day={month}-*.parquet")) if ydir.exists() else []
+    if not day_files:
+        return 0
+    target = ydir / f"month={month}.parquet"
+    fresh = pl.concat([pl.read_parquet(f) for f in day_files], how="diagonal_relaxed")
+    days = fresh[date_col].unique().to_list()
+    parts = [pl.read_parquet(target).filter(~pl.col(date_col).is_in(days))] if target.exists() else []
+    write_parquet(pl.concat([*parts, fresh], how="diagonal_relaxed").sort(date_col, maintain_order=True), target)
+    for f in day_files:
+        f.unlink()
+    return len(day_files)
+
+
 def init_catalog(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(str(path))

@@ -38,14 +38,17 @@ descriptors:
   beta:     {window: 252, half_life: 63, min_obs: 63}
   momentum: {window: 504, lag: 21, half_life: 126, min_obs: 252}
   resvol:   {weights: {DASTD: 0.75, CMRA: 0.15, HSIGMA: 0.10},
-             dastd: {window: 252, half_life: 42}, cmra_months: 12,
+             dastd: {window: 252, half_life: 42, min_obs: 63}, cmra_months: 12,
+             cmra_min_obs: 189,          # [OURS] 3/4 of the 12-month window must be priced
+             cmra_z_floor: -0.99,        # guard Z > -1 before ln(1 + Z)
              orthogonalize_to: [BETA]}
   earnings_yield: {weights: {CETOP: 0.60, ETOP: 0.40}, cash_earnings: cfo}
   growth:   {weights: {EGRO: 0.667, SGRO: 0.333}, years: 5, min_years: 3}
   leverage: {weights: {MLEV: 0.75, DTOA: 0.15, BLEV: 0.10}}
   liquidity: {weights: {STOM: 0.35, STOQ: 0.35, STOA: 0.30}, block: 21,
+              min_block_fraction: 0.5,   # [OURS] a 21-session block counts with half its days traded
               orthogonalize_to: []}
-  dividend_yield: {exclude_special: true}
+  dividend_yield: {exclude_special: true, lookback_sessions: 252}
   nonlinear_size: {orthogonalize_to: [SIZE]}
   nonlinear_beta: {orthogonalize_to: [BETA]}
   missing_fill: {method: regression, regressors: [industry, SIZE]}
@@ -64,10 +67,12 @@ factor_cov:
   provisional_until_days: 756
   eigen: {enabled: true, a: 1.0, n_sims: 1000, estimator: same,
           backfill_refresh: weekly, seed: date_hash}
-  vra: {enabled: true, half_life: 42, sigma_source: lag0_ewma, z_cap: 10.0}
+  vra: {enabled: true, half_life: 42, sigma_source: lag0_ewma, z_cap: 10.0,
+        min_obs: 63}                # [OURS] a factor enters the bias mean once its one-day vol has 63 obs
 
 specific_risk:
   ts: {half_life: 84, nw_lags: 5, nw_half_life: 252, window: 252,
+       lookback_days: 504,        # [OURS] the last 252 valid returns are searched this far back
        c_nw_bounds: [0.25, 4.0], min_sigma_monthly: 0.01}
   gamma: {method: cne5, h_min: 60, h_ramp: 120}
   structural: {min_fit_names: 60, gamma_fit_threshold: 0.99, e0: smearing}
@@ -112,6 +117,9 @@ qa:                               # [OURS] data-quality thresholds from §4.3-§
     dividend_min_rel: 2.0e-5      # implied D/P below this is rounding noise
     special_dividend_multiple: 3.0  # D above this multiple of the trailing median = special
     dividend_lookback_sessions: 252
+    volume_basis_tol: 0.02        # [OURS] report rows whose vendor adjustment is this far (log) from every split basis (D-017)
+    split_volume_window: 40       # [OURS] sessions each side of a split to test whether the vendor split-adjusted volume
+    split_volume_margin: 0.3      # [OURS] log evidence needed to read volume as left on the traded basis (D-017)
 
 security_master:                  # [OURS] identity resolution (§4.2, D-008)
   min_era_coverage: 0.90          # a vendor code must price this share of a membership era's sessions
@@ -124,6 +132,8 @@ security_master:                  # [OURS] identity resolution (§4.2, D-008)
   filing_slack_days: 365          # filings may stop this long before a delisting and still count
   share_outlier_factor: 3.0       # share counts beyond this factor of neighbours' median are scale errors
   share_outlier_window_days: 400  # neighbours: counts of the same issuer dated within this many days
+  share_turnover_band: [1.0e-4, 0.5]  # implied daily turnover a real count must give (D-016); checked first
+  share_turnover_window_days: 63  # median class volume over this many sessions before the count's basis
   public_float_max_age_months: 27 # public float is dated at Q2 end but filed with the next 10-K
 
 fundamentals:                     # [OURS] EDGAR XBRL durations, in days (Appendix C.3)
@@ -133,6 +143,31 @@ fundamentals:                     # [OURS] EDGAR XBRL durations, in days (Append
   nine_month_days: [260, 285]
   year_days: [350, 380]
   comparative_tolerance_days: 7   # a prior-year comparative period ends within this many days of t - 1y
+
+pipeline:                         # [OURS] daily DAG (§13.2) and its scheduling (§13.3)
+  vendor_ready_after_et: "18:30"  # before this (ET) the vendor is not expected to have today's session
+  vendor_probe_codes: [AAPL, MSFT, JPM]
+  vendor_wait_minutes: 90         # then give up; the next scheduled run catches up
+  vendor_poll_minutes: 10
+  notify: toast                   # toast (Windows desktop notification) | log
+  max_catchup_sessions: 30        # longer gaps go through `eqrisk backfill`
+
+validation:                       # [OURS] §11.2 backtest families and the §1.3 scorecard (Phase 9)
+  random_alpha_portfolios: 100    # family (c): minimum-risk factor portfolios for random alphas
+  random_portfolios: 100          # family (f): random long-only portfolios per forecast date
+  random_portfolio_names: 50
+  rolling_periods: 12             # rolling bias / MRAD window, in non-overlapping horizon periods
+  criteria:                       # §1.3 success criteria; French country correlation from §11.3
+    coverage_min: 0.99
+    constraint_resid_max: 1.0e-10
+    country_corr_min: 0.99
+    factor_bias_mean: [0.85, 1.15]
+    specific_bias: [0.9, 1.1]
+    specific_decile_bias: [0.8, 1.2]
+    mrad_max: 0.22                # "close to 0.17; fat tails push it toward 0.19-0.22"
+    daily_run_minutes_max: 10
+    unattended_sessions_min: 10
+    french_country_corr_min: 0.95
 
 outputs:
   root: data/model

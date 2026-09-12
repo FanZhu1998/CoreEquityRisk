@@ -27,12 +27,46 @@ def test_risk_free_act360_and_carry_forward():
     assert rf["date"].min() == date(2024, 1, 3)                                  # first session has no prior
 
 
-def _bars(code, closes, start=date(2024, 1, 2), adjusted=None, skip=()):
+def _bars(code, closes, start=date(2024, 1, 2), adjusted=None, skip=(), volume=None):
     sessions = CAL.sessions(start, date(2024, 3, 1))[: len(closes)]
     rows = [{"date": d.isoformat(), "open": c, "high": c, "low": c, "close": c,
-             "adjusted_close": (adjusted[k] if adjusted else c), "volume": 1000}
+             "adjusted_close": (adjusted[k] if adjusted else c), "volume": (volume[k] if volume else 1000)}
             for k, (d, c) in enumerate(zip(sessions, closes, strict=True)) if k not in skip]
     return eod_frame(rows, code, sessions[0], sessions[-1]), sessions
+
+
+def test_volume_is_put_back_on_the_day_s_share_basis():
+    # The vendor split-adjusts volume up to the pull date. A backfill pulled after a 2:1 split shows
+    # twice the shares traded before it; rows pulled on their own day (before the split) show them as
+    # traded. Both vintages, alone or mixed, must give the shares actually traded.
+    closes, adjusted = [100.0, 102.0, 51.5, 52.0], [50.0, 51.0, 51.5, 52.0]
+    late, sessions = _bars("A", closes, adjusted=adjusted, volume=[2000, 2000, 2000, 2000])
+    early, _ = _bars("A", closes[:2], volume=[1000, 1000])
+    codes = pl.DataFrame({"sid": [1], "code": ["A"], "valid_from": [FAR_PAST], "valid_to": [FAR_FUTURE]})
+    rf = pl.DataFrame({"date": sessions, "rf": [0.0] * 4})
+    for eod in (late, pl.concat([early, late.filter(pl.col("date") >= sessions[2])])):
+        px = build_prices(eod, codes, rf, sessions, CFG.qa).sort("date")
+        assert px["volume"].to_list() == pytest.approx([1000, 1000, 2000, 2000])
+        assert px["volume_basis_err"].max() == pytest.approx(0.0, abs=1e-12)
+
+
+def test_reverse_split_the_vendor_left_out_of_volume():
+    # CHK 2020 (1:200): the adjusted close carries the reverse split but the volume does not, so the
+    # volume after the split is a quarter of the volume before, as traded. It is left alone.
+    a, sessions = _bars("A", [10.0, 10.0, 40.0, 40.0], adjusted=[40.0] * 4, volume=[4000, 4000, 1000, 1000])
+    codes = pl.DataFrame({"sid": [1], "code": ["A"], "valid_from": [FAR_PAST], "valid_to": [FAR_FUTURE]})
+    px = build_prices(a, codes, pl.DataFrame({"date": sessions, "rf": [0.0] * 4}), sessions, CFG.qa).sort("date")
+    assert px["action"].to_list()[2] == "split" and px["split_ratio"].to_list()[2] == 0.25
+    assert px["volume"].to_list() == pytest.approx([4000, 4000, 1000, 1000])
+
+
+def test_large_unexplained_move_is_quarantined():
+    # The adjusted close barely moves while the close quadruples, and 1:4 is 1% off: not a split.
+    a, sessions = _bars("A", [10.0, 10.0, 40.0], adjusted=[10.0, 10.0, 10.1])
+    codes = pl.DataFrame({"sid": [1], "code": ["A"], "valid_from": [FAR_PAST], "valid_to": [FAR_FUTURE]})
+    px = build_prices(a, codes, pl.DataFrame({"date": sessions, "rf": [0.0] * 3}), sessions, CFG.qa).sort("date")
+    row = px.row(2, named=True)
+    assert row["action"] == "unexplained" and row["price_flag"] == "jump" and row["ret"] is None
 
 
 def test_price_flags_and_quarantine():

@@ -139,12 +139,15 @@ class MomentumCfg(_Block):
 class WindowHalfLifeCfg(_Block):
     window: int
     half_life: float
+    min_obs: int
 
 
 class ResvolCfg(_Weighted):
     weights: dict[Literal["DASTD", "CMRA", "HSIGMA"], float]
     dastd: WindowHalfLifeCfg
     cmra_months: int
+    cmra_min_obs: int
+    cmra_z_floor: float
     orthogonalize_to: list[StyleName]
 
 
@@ -166,11 +169,13 @@ class LeverageCfg(_Weighted):
 class LiquidityCfg(_Weighted):
     weights: dict[Literal["STOM", "STOQ", "STOA"], float]
     block: int
+    min_block_fraction: float
     orthogonalize_to: list[StyleName]
 
 
 class DividendYieldCfg(_Block):
     exclude_special: bool
+    lookback_sessions: int
 
 
 class NonlinearCfg(_Block):
@@ -228,6 +233,7 @@ class FactorVraCfg(_Block):
     half_life: float
     sigma_source: Literal["lag0_ewma", "final_daily"]
     z_cap: float
+    min_obs: int
 
 
 class FactorCovCfg(_Block):
@@ -245,6 +251,7 @@ class SpecificTsCfg(_Block):
     nw_lags: int
     nw_half_life: float
     window: int
+    lookback_days: int
     c_nw_bounds: tuple[float, float]
     min_sigma_monthly: float
 
@@ -327,6 +334,9 @@ class CorpActionQaCfg(_Block):
     dividend_min_rel: float
     special_dividend_multiple: float
     dividend_lookback_sessions: int
+    volume_basis_tol: float
+    split_volume_window: int
+    split_volume_margin: float
 
 
 class QaCfg(_Block):
@@ -344,6 +354,8 @@ class SecurityMasterCfg(_Block):
     filing_slack_days: int
     share_outlier_factor: float
     share_outlier_window_days: int
+    share_turnover_band: tuple[float, float]
+    share_turnover_window_days: int
     public_float_max_age_months: int
 
 
@@ -367,6 +379,36 @@ class OutputsCfg(_Block):
     export_site: ExportSiteCfg
 
 
+class PipelineCfg(_Block):
+    vendor_ready_after_et: str
+    vendor_probe_codes: list[str]
+    vendor_wait_minutes: int
+    vendor_poll_minutes: int
+    notify: Literal["toast", "log"]
+    max_catchup_sessions: int
+
+
+class ValidationCriteriaCfg(_Block):
+    coverage_min: float
+    constraint_resid_max: float
+    country_corr_min: float
+    factor_bias_mean: tuple[float, float]
+    specific_bias: tuple[float, float]
+    specific_decile_bias: tuple[float, float]
+    mrad_max: float
+    daily_run_minutes_max: float
+    unattended_sessions_min: int
+    french_country_corr_min: float
+
+
+class ValidationCfg(_Block):
+    random_alpha_portfolios: int
+    random_portfolios: int
+    random_portfolio_names: int
+    rolling_periods: int
+    criteria: ValidationCriteriaCfg
+
+
 class ModelConfig(_Block):
     model_id: str
     preset: PresetName
@@ -384,6 +426,8 @@ class ModelConfig(_Block):
     qa: QaCfg
     security_master: SecurityMasterCfg
     fundamentals: FundamentalsCfg
+    pipeline: PipelineCfg
+    validation: ValidationCfg
     outputs: OutputsCfg
 
     def config_hash(self) -> str:

@@ -31,17 +31,54 @@ def _count(period_end, value, concept=DEI, item="shares_out", cik=1):
             "available_date": CAL.next_session(filed), "concept": concept, "accn": "x"}
 
 
-def _flat_prices(start, end, close=100.0, splits=None):
+def _flat_prices(start, end, close=100.0, splits=None, volume=1e6):
     dates = CAL.sessions(start, end)
     cum, rows = 1.0, []
     for dt in dates:
         cum *= (splits or {}).get(dt, 1.0)
-        rows.append({"date": dt, "sid": 1, "close_unadj": close / cum, "ret": 0.0, "cum_split": cum})
+        rows.append({"date": dt, "sid": 1, "close_unadj": close / cum, "ret": 0.0, "cum_split": cum,
+                     "volume": volume * cum})
     return pl.DataFrame(rows)
 
 
 def _mcap(prices, shares, floats=NO_FLOAT, master=MASTER1):
-    return build_mcap(prices, master, pl.DataFrame(shares, schema=PIT_SCHEMA), floats, ORDER, 15, 27, 0.05, 3.0, 400)
+    return build_mcap(prices, master, pl.DataFrame(shares, schema=PIT_SCHEMA), floats, ORDER, 15, 27, 0.05,
+                      CFG.security_master)
+
+
+def test_counts_filed_in_thousands_fail_the_turnover_check():
+    # COP-style: weighted averages tagged in thousands (1.18e6) next to a correct cover count (1.16e9).
+    # Four mis-scaled facts per quarter outnumber the one correct count, so a neighbour median alone
+    # would keep the wrong level; turnover (1e6 shares a day / 1.18e6 = 85%) rejects them first.
+    q = [d(2019, 3, 31), d(2019, 6, 30), d(2019, 9, 30)]
+    rows = [_count(e, 1.16e9 - k * 1e6, DEI) for k, e in enumerate(q)]
+    for k, e in enumerate(q):
+        rows += [_count(e, 1.176e6 - k * 1e3, WAB), _count(e, 1.172e6 - k * 1e3, WAB),
+                 _count(e, 1.18e6, "us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding")]
+    mc, dropped = _mcap(_flat_prices(d(2018, 10, 1), d(2019, 12, 31)), rows)
+    assert set(dropped["reason"].to_list()) == {"turnover"} and dropped.height == 9
+    late = mc.filter(pl.col("date") >= d(2019, 10, 15))
+    assert set(late["shares_source"].to_list()) == {DEI}
+    assert late["mcap_issuer"][0] == pytest.approx((1.16e9 - 2e6) * 100.0)
+
+
+def test_counts_dated_before_the_price_history_are_judged_on_its_first_sessions():
+    # BRK.B and COP in early 2016: counts filed before the first price have no trailing volume. The
+    # mis-scaled ones must still go, or they outvote the cover page in the neighbour median.
+    ends = [d(2018, 3, 31), d(2018, 6, 30), d(2018, 9, 30)]
+    rows = [_count(e, 1.2e9, DEI) for e in ends]
+    for e in ends:
+        rows += [_count(e, 1.2e6, WAB), _count(e, 1.21e6, WAB), _count(e, 1.22e6, WAB)]
+    mc, dropped = _mcap(_flat_prices(d(2019, 1, 2), d(2019, 3, 29)), rows)
+    assert set(dropped["reason"].to_list()) == {"turnover"} and dropped.height == 9
+    assert set(mc["shares_source"].to_list()) == {DEI}
+
+
+def test_public_float_implying_implausible_turnover_is_not_used():
+    # ARES 2026: a float a hundred times too small gives 1% of the share count (100% daily turnover).
+    floats = pl.DataFrame([_count(d(2020, 6, 30), 1e8, "dei:EntityPublicFloat", item="public_float")], schema=PIT_SCHEMA)
+    mc, _ = _mcap(_flat_prices(d(2020, 6, 1), d(2020, 8, 31)), [], floats=floats)
+    assert mc["mcap_issuer"].null_count() == mc.height and mc["shares_source"].null_count() == mc.height
 
 
 def test_restated_balance_sheet_count_is_not_split_adjusted_twice():
@@ -61,7 +98,7 @@ def test_shares_split_adjusted_and_mcap_continuous_across_aapl_split():
     closes = [500.04, 499.23, 129.04, 134.18, 131.4]
     rets = [None, 499.23 / 500.04 - 1, 4 * 129.04 / 499.23 - 1, 134.18 / 129.04 - 1, 131.4 / 134.18 - 1]
     prices = pl.DataFrame({"date": dates, "sid": [1] * 5, "close_unadj": closes, "ret": rets,
-                           "cum_split": [1.0, 1.0, 4.0, 4.0, 4.0]})
+                           "cum_split": [1.0, 1.0, 4.0, 4.0, 4.0], "volume": [4e7, 4e7, 1.6e8, 1.6e8, 1.6e8]})
     master = pl.DataFrame({"sid": [1], "cik": [320193], "linked_sid": [None]}, schema_overrides={"linked_sid": pl.Int64})
     shares = [{"cik": 320193, "item": "shares_out", "period_end": d(2020, 7, 17), "value": 4_275_634_000.0,
                "filed": d(2020, 7, 31), "available_date": d(2020, 8, 3), "concept": DEI, "accn": "x"}]

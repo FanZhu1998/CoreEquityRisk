@@ -3,7 +3,8 @@
 A missing or quarantined price gives a missing return, never zero (§18). Quarantined:
 non-positive prices, and moves beyond `qa.prices.max_abs_return_no_action` with no corporate
 action on file. A return spanning more than one session (the vendor skipped days) is also set
-missing (DECISIONS D-007), since it is not a one-day return.
+missing (DECISIONS D-007), since it is not a one-day return. Volume is the shares traded that
+day: the vendor's split adjustment up to its pull date is taken back out (DECISIONS D-017).
 """
 
 from __future__ import annotations
@@ -14,7 +15,14 @@ from typing import Any
 import polars as pl
 
 from eqrisk.config import QaCfg
-from eqrisk.staging.corp_actions import DIVIDEND, NONE, UNEXPLAINED, flag_special_dividends, implied_actions
+from eqrisk.staging.corp_actions import (
+    DIVIDEND,
+    NONE,
+    UNEXPLAINED,
+    flag_special_dividends,
+    implied_actions,
+    vendor_split_basis,
+)
 
 # act/360 money-market convention for DTB3 (§4.6); the config's daycount key selects it.
 _ACT360_DAYS = 360.0
@@ -46,6 +54,8 @@ def build_prices(eod: pl.DataFrame, codes: pl.DataFrame, rf: pl.DataFrame, sessi
     sess = (pl.DataFrame({"date": sessions}, schema={"date": pl.Date})
             .with_row_index("i").with_columns(pl.col("i").cast(pl.Int64), prev_session=pl.col("date").shift(1)))
     ea = implied_actions(eod, qa.corp_actions, force_distribution)
+    basis = vendor_split_basis(ea, qa.corp_actions.split_volume_window, qa.corp_actions.split_volume_margin)
+    ea = ea.hstack(basis).with_columns(volume=pl.col("volume") / pl.col("volume_split"))
     df = (ea.join(codes, on="code")
           .filter(pl.col("date").is_between(pl.col("valid_from"), pl.col("valid_to")))
           .join(sess, on="date", how="inner")
@@ -57,7 +67,7 @@ def build_prices(eod: pl.DataFrame, codes: pl.DataFrame, rf: pl.DataFrame, sessi
     flags: dict[str, pl.Expr] = {
         "nonpositive": pl.col("close").is_null() | (pl.col("close") <= 0),
         "jump": (pl.col("ret_total").abs() > qa.prices.max_abs_return_no_action)
-                & pl.col("action").is_in([NONE, DIVIDEND]),
+                & pl.col("action").is_in([NONE, DIVIDEND, UNEXPLAINED]),
         "gap": pl.col("prev_date").is_not_null() & (pl.col("prev_date") != pl.col("prev_session")),
         "stale": pl.col("run_len") >= qa.prices.stale_run_days,
         "action_unexplained": pl.col("action") == UNEXPLAINED,
@@ -81,5 +91,5 @@ def build_prices(eod: pl.DataFrame, codes: pl.DataFrame, rf: pl.DataFrame, sessi
         ret_excess=pl.col("ret") - pl.col("rf"))
     cols: list[Any] = ["date", "sid", "code", pl.col("close").alias("close_unadj"), "volume", "adj_factor",
                        "ret", "ret_excess", "rf", "price_flag", "split_ratio", "dividend", "special_dividend",
-                       "action", "cum_split"]
+                       "action", "cum_split", "volume_basis_err"]
     return df.select(cols).sort("date", "sid")

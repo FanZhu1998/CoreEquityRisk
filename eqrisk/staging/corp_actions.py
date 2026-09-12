@@ -9,9 +9,9 @@ the price relative p = P_t/P_{t-1}:
 A pure split makes g a clean ratio a:b with a small term (AAPL 2020-08-31: 3.999998). A regular
 dividend makes g slightly above 1. A spin-off or special distribution makes g an arbitrary
 number; its whole gap is treated as a cash-equivalent distribution. Prices alone cannot tell a
-5:4 split from a 20% spin-off, so staging confirms splits between 1:3 and 3:1 against EDGAR share
-counts and passes back the ones to treat as distributions (`force_distribution`). Total return
-follows blueprint §4.3: r = (k P_t + D) / P_{t-1} - 1.
+5:4 split from a 20% spin-off, so staging confirms every split against EDGAR share counts and
+passes back the ones that are not splits (`force_distribution`). Total return follows blueprint
+§4.3: r = (k P_t + D) / P_{t-1} - 1.
 """
 
 from __future__ import annotations
@@ -105,19 +105,76 @@ def implied_actions(eod: pl.DataFrame, qa: CorpActionQaCfg,
     )
 
 
+def vendor_split_basis(ea: pl.DataFrame, window: int, margin: float) -> pl.DataFrame:
+    """Splits the vendor had applied to each row's volume when it was pulled (DECISIONS D-017).
+
+    Pull date: a row for day t pulled on day P carries log(close / adjusted_close) = the sum of
+    log g over its code's rows in (t, P], with g as in `implied_actions`. With CG the running sum
+    of log g along the code, P lies in one of the stretches between consecutive splits after t,
+    and within a stretch CG moves only with cash distributions. The stretch whose CG range
+    (relative to CG_t) is nearest the row's own factor holds P. Ties go to the later stretch, as
+    for a backfill pulled after all of it.
+
+    Volume: the vendor split-adjusts volume for most splits but not all (CHK's 1:200 in 2020). For
+    each split, compare the median volume over the `window` rows from the ex-date with the median
+    over the `window` rows before it whose pull date lies after it. A log ratio nearer log k than
+    0 by more than `margin` means the vendor left volume on the traded basis. Otherwise it adjusted
+    volume, which is also the reading for small splits, where volume noise cannot tell.
+
+    Needs code, date, close, adjusted_close, prev_close, prev_adjusted_close, volume and
+    split_ratio. Returns, in row order, `volume_split` (divide the vendor volume by it) and
+    `volume_basis_err`, the log distance from the row's factor to its stretch.
+    """
+    g = (pl.col("adjusted_close") / pl.col("prev_adjusted_close")) / (pl.col("close") / pl.col("prev_close"))
+    df = (ea.select("code", "date", "split_ratio", "volume", lg=g.log(),
+                    tau=(pl.col("close") / pl.col("adjusted_close")).log())
+          .with_row_index("_row").sort("code", "date")
+          .with_columns(lg=pl.when(pl.col("lg").is_finite()).then(pl.col("lg")).otherwise(0.0),
+                        tau=pl.when(pl.col("tau").is_finite()).then(pl.col("tau")).otherwise(None),
+                        i=pl.int_range(pl.len()).over("code"))
+          .with_columns(CG=pl.col("lg").cum_sum().over("code"),
+                        seg=(pl.col("split_ratio") != 1.0).cast(pl.Int32).cum_sum().over("code")))
+    segs = df.group_by("code", "seg").agg(lo=pl.col("CG").min(), hi=pl.col("CG").max())
+    best = (df.drop_nulls("tau").select("_row", "code", "seg", "CG", "tau")
+            .join(segs.rename({"seg": "cseg"}), on="code")
+            .filter(pl.col("cseg") >= pl.col("seg"))
+            .with_columns(dist=pl.max_horizontal(pl.col("lo") - pl.col("CG") - pl.col("tau"),
+                                                 pl.col("tau") - (pl.col("hi") - pl.col("CG")), pl.lit(0.0)))
+            .sort("_row", "dist", "cseg", descending=[False, False, True])
+            .unique("_row", keep="first", maintain_order=True).select("_row", "cseg", "dist"))
+    df = df.join(best, on="_row", how="left").with_columns(cseg=pl.coalesce("cseg", "seg")).sort("code", "i")
+
+    ev = df.filter(pl.col("split_ratio") != 1.0).select("code", ev_i="i", ev_seg="seg", lk=pl.col("split_ratio").log())
+    near = df.select("code", "i", "cseg", "volume").join(ev, on="code")
+    pre = (near.filter((pl.col("i") < pl.col("ev_i")) & (pl.col("cseg") >= pl.col("ev_seg")))
+           .group_by("code", "ev_i").agg(pre=pl.col("volume").sort_by("i", descending=True).head(window).median()))
+    post = (near.filter(pl.col("i").is_between(pl.col("ev_i"), pl.col("ev_i") + window - 1))
+            .group_by("code", "ev_i").agg(post=pl.col("volume").median()))
+    traded_basis = (pl.col("r") - pl.col("lk")).abs() + margin < pl.col("r").abs()
+    ev = (ev.join(pre, on=["code", "ev_i"], how="left").join(post, on=["code", "ev_i"], how="left")
+          .with_columns(r=(pl.col("post") / pl.col("pre")).log())
+          .with_columns(lkv=pl.when(pl.col("r").is_finite() & traded_basis).then(0.0).otherwise(pl.col("lk"))))
+    df = (df.join(ev.select("code", i="ev_i", lkv="lkv"), on=["code", "i"], how="left").sort("code", "i")
+          .with_columns(CKv=pl.col("lkv").fill_null(0.0).cum_sum().over("code")))
+    ck = df.group_by("code", "seg").agg(ck_p=pl.col("CKv").first()).rename({"seg": "cseg"})
+    out = df.join(ck, on=["code", "cseg"], how="left").sort("_row")
+    return out.select(volume_split=(pl.col("ck_p") - pl.col("CKv")).exp(), volume_basis_err=pl.col("dist"))
+
+
 def unconfirmed_splits(prices: pl.DataFrame, issuer_of: pl.DataFrame, shares: pl.DataFrame,
                        qa: CorpActionQaCfg) -> pl.DataFrame:
-    """(code, date) of detected splits between 1:f and f:1 that EDGAR share counts contradict.
+    """(code, date) of detected splits that EDGAR share counts contradict.
 
-    For each such split, compare the issuer's last share count filed before the ex-date with the
-    first filed on or after it (within `split_confirm_window_days`). Filing dates, not period ends:
+    Prices cannot tell a 5:4 split from a 20% spin-off, nor a 1:10 reverse split from a vendor
+    that quoted the close in the wrong unit for months (Rockwell Collins before 2016-06-01). For
+    each split, compare the issuer's last share count filed before the ex-date with the first
+    filed on or after it (within `split_confirm_window_days`). Filing dates, not period ends:
     statements issued after a split restate earlier-dated counts on the new basis. If the ratio
-    sits closer to 1 than to the split ratio, the event was a distribution. Splits without counts
-    on both sides stand as detected.
+    sits closer to 1 than to the split ratio, the event was not a split. Splits without counts on
+    both sides stand as detected.
     """
-    f = qa.split_fraction_max
-    ev = (prices.filter((pl.col("action") == SPLIT) & pl.col("split_ratio").is_between(1.0 / f, f, closed="none"))
-          .select("sid", "code", "date", "split_ratio").join(issuer_of, on="sid"))
+    ev = (prices.filter(pl.col("action") == SPLIT).select("sid", "code", "date", "split_ratio")
+          .join(issuer_of, on="sid"))
     out: list[tuple[str, date]] = []
     by_cik = {c: g.sort("filed", "period_end") for (c,), g in shares.group_by("cik")}
     window = qa.split_confirm_window_days

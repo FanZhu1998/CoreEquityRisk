@@ -38,7 +38,15 @@ Read that file too before changing anything in the data layer.
 ```text
 uv sync                                  # install
 uv run pytest                            # full test suite (live tests deselected)
+uv run pytest -m "not golden"            # unit tests only (golden = §17 acceptance on data/)
+uv run pytest -m golden                  # phase acceptance tests on the development data
 uv run pytest -m live                    # tests that call vendor APIs
 uv run ruff check . && uv run mypy --strict eqrisk/kernels
 uv run eqrisk --help                     # CLI (§13.1)
+uv run eqrisk run-daily                  # daily catch-up with gates (docs/RUNBOOK.md)
+uv run eqrisk validate                   # bias battery and §1.3 scorecard -> reports/
+uv run eqrisk ui / export-site           # Streamlit workbench / static viewer in site/
 ```
+
+While a long `eqrisk` command runs in the background it holds `.venv\Scripts\eqrisk.exe`;
+use `uv run --no-sync ...` for anything else until it finishes.

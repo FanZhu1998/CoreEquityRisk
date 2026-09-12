@@ -47,6 +47,7 @@ dev = [
     "mypy>=1.10",
     "pre-commit>=3.7",
     "types-PyYAML",
+    "mini-racer>=0.14.1",
 ]
 
 [build-system]
@@ -84,6 +85,10 @@ ignore = [
 "tests/**" = ["E731", "E501", "B023"]
 # Appendix A.2 verbatim apart from its import line.
 "tests/kernels/test_reference_kernels.py" = ["I001"]
+# Section 12 and Appendix A.3 are kept exactly as written in the blueprint (Phase 8).
+"eqrisk/optimize/riskfolio_adapter.py" = ["I001", "E702"]
+"eqrisk/optimize/factor_form.py" = ["I001"]
+"tests/optimize/test_optimize.py" = ["I001"]
 
 [tool.mypy]
 python_version = "3.12"

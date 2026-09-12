@@ -144,7 +144,106 @@ def backfill(start: StartOpt = None, end: EndOpt = None,
                          industry_scheme_version=project.config.industries.scheme_version, as_of=e)
         write_manifest(finish(m.model_copy(update={"counts": {"staging": report}}), "OK"), project.model_dir)
     if stage in (Stage.model, Stage.all):
-        typer.echo(json.dumps({"stage": "model", "status": "not available yet"}))
+        from eqrisk.pipeline.model_run import (
+            run_exposures,
+            run_factor_cov_stage,
+            run_regression_stage,
+            run_specific_risk_stage,
+        )
+
+        report = {"exposures": run_exposures(project, e)}
+        report["regression"] = run_regression_stage(project, e)
+        report["factor_cov"] = run_factor_cov_stage(project, e)
+        report["specific_risk"] = run_specific_risk_stage(project, e)
+        typer.echo(json.dumps(report, indent=1, default=str))
+        m = new_manifest(root=project.root, command=f"backfill --stage model ..{e}", model_id=project.config.model_id,
+                         config_hash=project.config.config_hash(),
+                         industry_scheme_version=project.config.industries.scheme_version, as_of=e)
+        write_manifest(finish(m.model_copy(update={"counts": {"model": report}}), "OK"), project.model_dir)
+
+
+@app.command("run-daily")
+def run_daily_cmd(
+        on: Annotated[str | None, typer.Option(
+            "--date", help="Catch up through this session (default: the latest the vendor has).")] = None,
+        offline: Annotated[bool, typer.Option(help="Skip ingest; use the raw data already stored.")] = False,
+        stage: Annotated[bool, typer.Option(help="Rebuild the staged tables first.")] = True,
+        force: Annotated[bool, typer.Option(help="Recompute --date even if it was processed.")] = False,
+        root: RootOpt = Path("."), config: ConfigOpt = DEFAULT_CONFIG) -> None:
+    """Catch up every unprocessed session through D: ingest, stage, model, gates, LATEST_GOOD (§13.2)."""
+    from eqrisk.pipeline.daily import run_daily
+
+    project = _project(root, config)
+    runs = run_daily(project, date.fromisoformat(on) if on else None, offline=offline, stage=stage, force=force)
+    if not runs:
+        typer.echo("nothing to do")
+        return
+    for m in runs:
+        failed = [g["gate"] for g in m.gates.get("results", []) if not g["ok"]]
+        typer.echo(f"{m.as_of} {m.status:<12} {', '.join(failed) or 'all gates pass'}")
+
+
+@app.command()
+def compact(month: Annotated[str, typer.Option("--month", help="Month to compact, YYYY-MM.")],
+            root: RootOpt = Path("."), config: ConfigOpt = DEFAULT_CONFIG) -> None:
+    """Merge a month's daily model files into one file per table (§14)."""
+    from eqrisk.pipeline.daily import compact_tables
+
+    typer.echo(f"merged {compact_tables(_project(root, config), month)} day files")
+
+
+@app.command()
+def validate(start: Annotated[str | None, typer.Option(help="First forecast date (default: the first).")] = None,
+             end: Annotated[str | None, typer.Option(help="Last forecast date (default: the last).")] = None,
+             root: RootOpt = Path("."), config: ConfigOpt = DEFAULT_CONFIG) -> None:
+    """Bias battery and the §1.3 scorecard -> reports/ (§11.2)."""
+    from eqrisk.validation.run import run_validation
+
+    project = _project(root, config)
+    res, out = run_validation(project, date.fromisoformat(start) if start else None,
+                              date.fromisoformat(end) if end else None)
+    for r in res.scorecard:
+        typer.echo(f"{r['status']:<8} {r['area']:<16} {r['criterion']}: {r['value']}")
+    typer.echo(f"report: {out / 'report.md'}")
+
+
+@app.command()
+def snapshot(on: Annotated[str | None, typer.Option("--date", help="As-of date (default: latest good).")] = None,
+             out: Annotated[Path, typer.Option("--out", help="Where to write the .npz snapshot.")] = Path("snap.npz"),
+             root: RootOpt = Path("."), config: ConfigOpt = DEFAULT_CONFIG) -> None:
+    """Write a RiskModelSnapshot (X, F, specific variance) for notebooks and optimizers (§10)."""
+    from eqrisk.model.snapshot import ModelStore
+
+    project = _project(root, config)
+    snap = ModelStore(project).snapshot(date.fromisoformat(on) if on else None)
+    snap.save(out)
+    typer.echo(f"{snap.as_of}: {len(snap.sids)} securities x {len(snap.factors)} factors -> {out}")
+
+
+@app.command()
+def ui(port: Annotated[int, typer.Option(help="Local port for the workbench.")] = 8501,
+       root: RootOpt = Path("."), config: ConfigOpt = DEFAULT_CONFIG) -> None:
+    """Streamlit workbench (§15.1) at http://localhost:PORT."""
+    import os
+    import subprocess
+    import sys
+
+    project = _project(root, config)
+    env = {**os.environ, "EQRISK_ROOT": str(project.root), "EQRISK_CONFIG": str(project.config_path)}
+    raise typer.Exit(subprocess.call([sys.executable, "-m", "streamlit", "run", str(project.root / "app" / "main.py"),
+                                      "--server.port", str(port), "--server.headless", "true"], env=env))
+
+
+@app.command("export-site")
+def export_site_cmd(on: Annotated[str | None, typer.Option("--date", help="As-of date (default: latest good).")] = None,
+                    years: Annotated[int | None, typer.Option(help="Years of history (default: config).")] = None,
+                    out: Annotated[Path | None, typer.Option(help="Output folder (default: config).")] = None,
+                    root: RootOpt = Path("."), config: ConfigOpt = DEFAULT_CONFIG) -> None:
+    """Static offline viewer -> site/ (§15.2); serve it with `python -m http.server -d site`."""
+    from eqrisk.pipeline.export_site import export_site
+
+    path, size = export_site(_project(root, config), date.fromisoformat(on) if on else None, years, out)
+    typer.echo(f"{path}: {size / 1e6:.2f} MB")
 
 
 @app.command("pull-overrides")

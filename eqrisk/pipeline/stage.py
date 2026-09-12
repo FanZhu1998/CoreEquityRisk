@@ -25,7 +25,7 @@ from eqrisk.log import get_logger
 from eqrisk.staging import fundamentals_pit as fpit
 from eqrisk.staging.corp_actions import unconfirmed_splits
 from eqrisk.staging.industry import assign_industries, read_industries, read_overrides, read_sic_map
-from eqrisk.staging.mcap import OVERRIDE, build_mcap, clean_share_counts, normalized_counts, override_rows
+from eqrisk.staging.mcap import OVERRIDE, build_mcap, clean_counts, override_rows
 from eqrisk.staging.membership import daily_membership, membership_eras, parse_components
 from eqrisk.staging.rawio import cik_partitions, read_edgar, read_eod, read_reference
 from eqrisk.staging.returns import build_prices, risk_free
@@ -179,18 +179,16 @@ def run_staging(project: Project, end: date | None = None) -> dict[str, Any]:
     shares_pit = pl.concat([pit.filter(pl.col("item") == "shares_out"), override_rows(shares_ovr, avail)])
     order = [OVERRIDE] + ["{}:{}".format(*split_concept(c)) for c in project.concepts.items["shares_out"].chain]
 
-    # Returns; then splits in (1/3, 3) that share counts contradict become distributions.
+    # Returns; then splits that share counts contradict are re-run as non-splits.
     rf = risk_free(read_reference(raw, "fred", cfg.sources.risk_free.series), sessions)
     prices = build_prices(eod, sm.codes, rf, sessions, cfg.qa)
     smc, stale_m = cfg.security_master, cfg.descriptors.fundamentals.max_staleness_months
-    clean0, _ = clean_share_counts(normalized_counts(prices, sm.master, shares_pit, stale_m),
-                                   smc.share_outlier_factor, smc.share_outlier_window_days)
+    clean0, _ = clean_counts(prices, sm.master, shares_pit, stale_m, smc)
     forced = unconfirmed_splits(prices, sm.master.select("sid", "cik").drop_nulls(), clean0, cfg.qa.corp_actions)
     if forced.height:
         prices = build_prices(eod, sm.codes, rf, sessions, cfg.qa, force_distribution=forced)
     mcap, dropped = build_mcap(prices, sm.master, shares_pit, pit.filter(pl.col("item") == "public_float"), order,
-                               stale_m, smc.public_float_max_age_months, cfg.qa.prices.mcap_continuity_tol,
-                               smc.share_outlier_factor, smc.share_outlier_window_days)
+                               stale_m, smc.public_float_max_age_months, cfg.qa.prices.mcap_continuity_tol, smc)
 
     industries_tbl = read_industries(project.overrides_dir / "industries.csv")
     parents = dict(zip(industries_tbl["industry"].to_list(), industries_tbl["parent"].to_list(), strict=True))
@@ -202,14 +200,22 @@ def run_staging(project: Project, end: date | None = None) -> dict[str, Any]:
 
     split_exc = forced.join(sm.codes.select("code", "sid").unique("code"), on="code", how="left").select(
         ticker=pl.col("code"), start=pl.col("date"), end=pl.col("date"), issue=pl.lit("split_reclassified"),
-        detail=pl.lit("share counts did not move by the split ratio: treated as a distribution"))
+        detail=pl.lit("share counts did not move by the split ratio: not a split"))
     share_exc = dropped.select(ticker=pl.col("cik").cast(pl.String), start=pl.col("period_end"),
                                end=pl.col("filed"), issue=pl.lit("share_count_outlier"),
-                               detail=pl.format("{} reported {} shares", pl.col("concept"), pl.col("value")))
+                               detail=pl.format("{}: {} reported {} shares", pl.col("reason"), pl.col("concept"),
+                                                pl.col("value")))
+    vol_exc = (prices.filter(pl.col("volume_basis_err") > cfg.qa.corp_actions.volume_basis_tol).group_by("code")
+               .agg(start=pl.col("date").min(), end=pl.col("date").max(), n=pl.len(),
+                    worst=pl.col("volume_basis_err").max())
+               .select(ticker=pl.col("code"), start="start", end="end", issue=pl.lit("volume_basis_unmatched"),
+                       detail=pl.format("{} rows; vendor adjustment up to {} (log) from every split basis",
+                                        pl.col("n"), pl.col("worst").round(3))))
     exceptions = pl.concat([
         sm.exceptions.with_columns(area=pl.lit("identity")), link_exc.with_columns(area=pl.lit("identity")),
         ind_exc.with_columns(area=pl.lit("industry")), thin_exc.with_columns(area=pl.lit("thin_industry")),
         split_exc.select(list(EXCEPTION_SCHEMA)).with_columns(area=pl.lit("corp_actions")),
+        vol_exc.select(list(EXCEPTION_SCHEMA)).with_columns(area=pl.lit("corp_actions")),
         share_exc.select(list(EXCEPTION_SCHEMA)).with_columns(area=pl.lit("shares")),
     ])
 

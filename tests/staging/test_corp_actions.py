@@ -65,19 +65,21 @@ def test_odd_ratio_spin_off_is_not_a_28_for_3_split():
 
 def test_share_counts_decide_between_split_and_spin_off():
     d0 = date(2021, 11, 8)
-    prices = pl.DataFrame({"sid": [1, 2, 3, 4], "code": ["ADS", "BFB", "TSLA", "RST"], "date": [d0] * 4,
-                           "action": [SPLIT] * 4, "split_ratio": [1.25, 1.25, 5.0, 2.0]})
-    issuer_of = pl.DataFrame({"sid": [1, 2, 3, 4], "cik": [11, 22, 33, 44]})
+    prices = pl.DataFrame({"sid": [1, 2, 3, 4, 5], "code": ["ADS", "BFB", "TSLA", "RST", "COL"], "date": [d0] * 5,
+                           "action": [SPLIT] * 5, "split_ratio": [1.25, 1.25, 5.0, 2.0, 0.1]})
+    issuer_of = pl.DataFrame({"sid": [1, 2, 3, 4, 5], "cik": [11, 22, 33, 44, 55]})
     q3, q4 = date(2021, 9, 30), date(2021, 12, 31)
     shares = pl.DataFrame({
-        "cik": [11, 11, 22, 22, 33, 33, 44, 44],
-        "period_end": [q3, q4, q3, q4, q3, q4, date(2021, 10, 20), q3],
-        "filed": [date(2021, 10, 28), date(2022, 2, 25)] * 3 + [date(2021, 10, 28), date(2021, 11, 15)],
+        "cik": [11, 11, 22, 22, 33, 33, 44, 44, 55, 55],
+        "period_end": [q3, q4, q3, q4, q3, q4, date(2021, 10, 20), q3, q3, q4],
+        "filed": ([date(2021, 10, 28), date(2022, 2, 25)] * 3 + [date(2021, 10, 28), date(2021, 11, 15)]
+                  + [date(2021, 10, 28), date(2022, 2, 25)]),
         # RST: the cover count (as of 20 Oct) is pre-split; the Q3 balance sheet filed after the
         # split is restated 2:1 although it is dated 30 Sep. Ordering by filing date sees the split.
-        "value": [49.8e6, 49.9e6, 384e6, 480e6, 1e9, 1e9, 100e6, 200e6]})
+        # COL: a vendor close quoted at a tenth of its value reads as 1:10; the count did not move.
+        "value": [49.8e6, 49.9e6, 384e6, 480e6, 1e9, 5e9, 100e6, 200e6, 130e6, 131e6]})
     out = unconfirmed_splits(prices, issuer_of, shares, QA)
-    assert out.rows() == [("ADS", d0)]            # BFB and RST moved by their ratios; TSLA's 5:1 is outside
+    assert out.rows() == [("ADS", d0), ("COL", d0)]           # BFB, TSLA and RST moved by their ratios
 
 
 def test_forced_distribution_overrides_a_clean_ratio():
