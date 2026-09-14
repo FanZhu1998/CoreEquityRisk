@@ -60,7 +60,10 @@ PATTERNS = [
 ]
 
 TEXT_SUFFIXES = {".py", ".pyi", ".ipynb", ".md", ".txt", ".yaml", ".yml", ".toml", ".json", ".cfg", ".ini",
-                 ".bat", ".cmd", ".ps1", ".sh", ".html", ".css", ".js", ".svg", ".csv", ".env", ".example", ""}
+                 ".bat", ".cmd", ".ps1", ".sh", ".html", ".css", ".js", ".svg", ".csv", ".env", ".example", "",
+                 # the C# desktop app (desktop/)
+                 ".cs", ".xaml", ".csproj", ".props", ".targets", ".sln", ".slnx", ".resx", ".config", ".xml",
+                 ".manifest", ".editorconfig"}
 
 
 def env_secrets() -> dict[str, str]:

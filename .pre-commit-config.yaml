@@ -32,3 +32,10 @@ repos:
         language: system
         pass_filenames: false
         files: ^(eqrisk|app)/.*\.py$
+
+      - id: desktop
+        name: desktop app builds warning-free and its tests pass (.NET 10 SDK)
+        entry: powershell -NoProfile -ExecutionPolicy Bypass -File desktop/scripts/check.ps1
+        language: system
+        pass_filenames: false
+        files: ^(desktop/|eqrisk/pipeline/feed\.py|eqrisk/cli\.py)

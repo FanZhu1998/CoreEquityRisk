@@ -1,0 +1,103 @@
+<UserControl x:Class="EQRisk.Desktop.Views.Pages.TodayView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:EQRisk.Desktop.Views.Controls">
+    <StackPanel>
+        <c:PageHeader />
+        <ItemsControl ItemsSource="{Binding Stats}" Style="{StaticResource StatRail}" />
+
+        <!-- The one thing to do today. -->
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Style="{StaticResource H2}" FontSize="19" Text="{Binding ActionTitle}" />
+                <TextBlock Style="{StaticResource Note}" Text="{Binding ActionNote}" Margin="0,0,0,16" MaxWidth="860"
+                           HorizontalAlignment="Left" />
+                <WrapPanel>
+                    <Button Style="{StaticResource PrimaryButton}" Command="{Binding RunUpdateCommand}" Margin="0,0,10,0"
+                            Visibility="{Binding HasPending, Converter={StaticResource VisibleWhen}}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE768;" FontSize="12" Margin="0,0,9,0"
+                                       Foreground="{StaticResource OnAccentBrush}" />
+                            <TextBlock Text="Run today's update" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource SecondaryButton}" Command="{Binding UseStoredDataCommand}" Margin="0,0,10,0"
+                            Content="Use stored data only"
+                            ToolTip="Skip the downloads and estimate from the raw data already on disk."
+                            Visibility="{Binding CanUseStoredData, Converter={StaticResource VisibleWhen}}" />
+                    <Button Style="{StaticResource SecondaryButton}" Command="{Binding RerunLastCommand}"
+                            ToolTip="Recompute the last session from the raw data on disk and replace its outputs."
+                            Visibility="{Binding HasPending, Converter={StaticResource HiddenWhen}}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE72C;" FontSize="12" Margin="0,0,9,0" />
+                            <TextBlock>
+                                <Run Text="Re-run" />
+                                <Run Text="{Binding LastSession, Mode=OneWay, StringFormat={}{0:yyyy-MM-dd}}" />
+                            </TextBlock>
+                        </StackPanel>
+                    </Button>
+                </WrapPanel>
+                <Border Margin="0,16,0,0" Background="{StaticResource WarnDimBrush}" CornerRadius="5" Padding="14,10"
+                        Visibility="{Binding MissingKeys, Converter={StaticResource VisibleWhen}}">
+                    <DockPanel>
+                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE8D7;" Foreground="{StaticResource WarnBrush}" Margin="0,0,10,0" />
+                        <TextBlock Text="{Binding MissingKeys}" Style="{StaticResource Body}" />
+                    </DockPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+        <TextBlock Style="{StaticResource Note}" Text="{Binding ScheduleLine}" Margin="2,0,0,18" />
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="2*" />
+            </Grid.ColumnDefinitions>
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}">
+                        <Run Text="Style factor moves on" />
+                        <Run Text="{Binding LastSession, Mode=OneWay, StringFormat={}{0:yyyy-MM-dd}}" />
+                    </TextBlock>
+                    <TextBlock Style="{StaticResource Note}" Margin="0,0,0,8"
+                               Text="Each style's return in units of its own trailing volatility: beyond ±2 is a large day." />
+                    <c:ChartView Chart="{Binding StyleMoves}" Height="380" />
+                    <TextBlock Style="{StaticResource Note}" Text="{Binding IndustryLine}" Margin="0,10,0,0" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="2" Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="Quality gates of the last daily run" />
+                    <ItemsControl ItemsSource="{Binding Gates}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,0,0,10">
+                                    <Border DockPanel.Dock="Left" Style="{StaticResource Pill}" Width="56" Margin="0,2,12,0"
+                                            VerticalAlignment="Top" Background="{Binding Tone, Converter={StaticResource ToneDimBrush}}">
+                                        <TextBlock Text="{Binding Result}" FontFamily="{StaticResource MonoFont}" FontSize="10.5"
+                                                   HorizontalAlignment="Center" Foreground="{Binding Tone, Converter={StaticResource ToneBrush}}" />
+                                    </Border>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Gate}" FontSize="13" />
+                                        <TextBlock Text="{Binding Detail}" Style="{StaticResource Note}" FontSize="11.5" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Style="{StaticResource Note}" Text="{Binding GatesNote}" Margin="0,6,0,0" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Style="{StaticResource H2}" Text="Volatility regime over the last year" />
+                <TextBlock Style="{StaticResource Note}" Margin="0,0,0,8"
+                           Text="The regime adjustment scales forecasts by how far recent realized risk has run from forecast. Above 1, forecasts are raised." />
+                <c:ChartView Chart="{Binding Regime}" Height="250" />
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

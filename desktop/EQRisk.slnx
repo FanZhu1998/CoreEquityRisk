@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/EQRisk.Core/EQRisk.Core.csproj" />
+    <Project Path="src/EQRisk.Desktop/EQRisk.Desktop.csproj" />
+    <Project Path="src/EQRisk.Infrastructure/EQRisk.Infrastructure.csproj" />
+    <Project Path="src/EQRisk.Presentation/EQRisk.Presentation.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/EQRisk.Core.Tests/EQRisk.Core.Tests.csproj" />
+    <Project Path="tests/EQRisk.Desktop.Tests/EQRisk.Desktop.Tests.csproj" />
+    <Project Path="tests/EQRisk.Infrastructure.Tests/EQRisk.Infrastructure.Tests.csproj" />
+    <Project Path="tests/EQRisk.Presentation.Tests/EQRisk.Presentation.Tests.csproj" />
+  </Folder>
+</Solution>

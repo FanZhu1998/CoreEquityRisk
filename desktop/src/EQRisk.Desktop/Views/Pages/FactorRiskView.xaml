@@ -1,0 +1,36 @@
+<UserControl x:Class="EQRisk.Desktop.Views.Pages.FactorRiskView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:EQRisk.Desktop.Views.Controls">
+    <StackPanel>
+        <c:PageHeader />
+        <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource AsOfBar}" />
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Border Style="{StaticResource Card}" VerticalAlignment="Top">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="Factor volatility, annualized" />
+                    <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Rows}" MaxHeight="640">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="FACTOR" Binding="{Binding Factor}" Width="*" ElementStyle="{StaticResource LongTextCell}" />
+                            <DataGridTextColumn Header="FORECAST" Binding="{Binding VolAnn, StringFormat={}{0:P1}, TargetNullValue=—}" Width="82" ElementStyle="{StaticResource NumberCell}" />
+                            <DataGridTextColumn Header="BEFORE EIGEN" Binding="{Binding PreEigenAnn, StringFormat={}{0:P1}, TargetNullValue=—}" Width="104" ElementStyle="{StaticResource NumberCell}" />
+                            <DataGridTextColumn Header="CHANGE" Binding="{Binding Change, StringFormat={}{0:+0.0%;-0.0%}, TargetNullValue=—}" Width="78" ElementStyle="{StaticResource NumberCell}" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="2" Style="{StaticResource Card}" VerticalAlignment="Top">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="Factor correlations" />
+                    <TextBlock Style="{StaticResource Note}" Text="Blue is positive, red negative. Hover a cell for its value." Margin="0,0,0,8" />
+                    <c:ChartView Chart="{Binding Correlations}" Height="640" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </StackPanel>
+</UserControl>

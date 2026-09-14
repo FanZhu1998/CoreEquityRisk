@@ -34,7 +34,7 @@ KERNEL_FORBIDDEN = {"polars", "pandas", "duckdb", "httpx", "streamlit", "plotly"
 # read-only helpers behind the status pages. Everything else it wants, it runs as a CLI job.
 APP_ALLOWED = {"eqrisk.config", "eqrisk.manifest", "eqrisk.store", "eqrisk.calendar",
                "eqrisk.model.snapshot", "eqrisk.model.exposures",
-               "eqrisk.analytics.risk", "eqrisk.optimize.factor_form", "eqrisk.optimize.riskfolio_adapter",
+               "eqrisk.analytics.risk", "eqrisk.optimize.service",
                "eqrisk.pipeline.daily", "eqrisk.pipeline.doctor"}
 
 

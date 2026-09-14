@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Everything that touches the machine: the engine processes, the job object that ends them, the
+       SQLite job history, the JSON settings, the DPAPI key vault, Task Scheduler and WMI. -->
+  <PropertyGroup>
+    <RootNamespace>EQRisk.Infrastructure</RootNamespace>
+    <!-- LibraryImport generates the P/Invoke marshalling stubs, which need unsafe code. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EQRisk.Core\EQRisk.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Polly.Core" />
+    <PackageReference Include="System.Management" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+    <PackageReference Include="Tomlyn" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="EQRisk.Infrastructure.Tests" />
+  </ItemGroup>
+
+</Project>

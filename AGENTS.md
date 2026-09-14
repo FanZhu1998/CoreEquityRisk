@@ -47,7 +47,9 @@ uv run eqrisk run-daily                  # daily catch-up with gates (docs/RUNBO
 uv run eqrisk validate                   # bias battery and §1.3 scorecard -> reports/
 uv run eqrisk ui / export-site           # Streamlit workbench / static viewer in site/
 uv run python tools/check_no_secrets.py  # commit guard: --all tracked files, --history all commits
-uv run pre-commit install                # install the ruff, mypy, layer and secret hooks
+uv run pre-commit install                # install the ruff, mypy, layer, secret and desktop hooks
+powershell -File desktop\scripts\check.ps1   # desktop app: build (warnings are errors) + all C# tests
+powershell -File desktop\scripts\pack.ps1    # desktop app: Setup.exe + portable zip -> desktop\artifacts\releases
 ```
 
 ## Boundaries (D-023)
@@ -69,9 +71,27 @@ kernels(0) <- config/log/ids/calendar/manifest/store/frames(1) <- sources(2) <- 
 - Reading one value out of a polars frame goes through `eqrisk/frames.py` (`as_float`, `as_int`,
   `as_str`), not a bare `float(df["x"].max() or 0.0)`.
 
+## Desktop app (D-025)
+
+`desktop/` is a .NET 10 WPF solution (`EQRisk.slnx`) around the engine; it computes nothing itself.
+
+```text
+EQRisk.Core (net10.0) <- EQRisk.Presentation (net10.0, view models) <- EQRisk.Desktop (WPF, composition)
+EQRisk.Core (net10.0) <- EQRisk.Infrastructure (Windows: processes, SQLite, DPAPI) <-/
+```
+
+- Reads go through `eqrisk serve` (`eqrisk/pipeline/feed.py`); work runs as `eqrisk` CLI jobs. A new
+  read is a `Feed` method, a record in `FeedModels.cs` and a golden test in `tests/pipeline/test_feed.py`.
+- Core and Presentation never reference WPF or Windows (`DesktopTests.ArchitectureTests`). Services
+  are registered only in `Hosting/Composition.cs`; `CompositionTests` resolves all of them.
+- The read server gets no keys. Download jobs get them from the DPAPI vault as environment
+  variables of that process; log key names only, never values.
+- `desktop/**/bin`, `obj` and `artifacts` are git-ignored: never commit a build or a release.
+
 ## Secrets (D-024)
 
-Keys live only in `.env`, reach the code as `SecretStr`, and are stripped from every log line and
+Keys live in `.env` (or the desktop app's DPAPI vault under `%LOCALAPPDATA%\EQRisk`, outside the
+repository), reach the code as `SecretStr`, and are stripped from every log line and
 exception message by `eqrisk/sources/base.py::safe_url`. Never print a key, never write one into a
 manifest, report or page, and never put the `SEC_USER_AGENT` contact address anywhere but that
 variable and git authorship. `tools/check_no_secrets.py` blocks a commit that breaks this, by path

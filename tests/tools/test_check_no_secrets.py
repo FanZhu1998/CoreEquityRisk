@@ -27,7 +27,8 @@ def test_forbidden_paths_are_blocked(path: str) -> None:
 
 @pytest.mark.parametrize("path", [
     ".env.example", "eqrisk/config.py", "configs/model.yaml", "docs/BLUEPRINT.md",
-    "app/studio.py", "tests/fixtures/fja_sp500.csv", "EQRisk Studio.bat",
+    "app/main.py", "tests/fixtures/fja_sp500.csv", "desktop/src/EQRisk.Desktop/App.xaml.cs",
+    "desktop/scripts/pack.ps1",
 ])
 def test_normal_paths_are_allowed(path: str) -> None:
     assert guard.check_paths([path]) == []

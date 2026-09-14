@@ -1,0 +1,35 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{csproj,props,targets,slnx,json,xml,manifest}]
+indent_size = 2
+
+[*.cs]
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_prefer_braces = true:warning
+dotnet_sort_system_directives_first = true
+
+[src/EQRisk.Desktop/**.cs]
+# WPF views, converters and the composition root are public by the XAML compiler's needs.
+dotnet_diagnostic.CA1515.severity = none
+# UI code must come back to the UI thread after an await, so it never adds ConfigureAwait(false).
+dotnet_diagnostic.CA2007.severity = none
+
+[src/EQRisk.Presentation/**.cs]
+# View models resume on the UI thread by design (see CA2007 note above).
+dotnet_diagnostic.CA2007.severity = none
+
+[tests/**.cs]
+# Test names read as sentences, with underscores; xUnit classes are public; tests never ConfigureAwait.
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1515.severity = none
+dotnet_diagnostic.CA2007.severity = none
+# xUnit1051: tests are short-lived; threading TestContext cancellation through every call adds noise, not safety.
+dotnet_diagnostic.xUnit1051.severity = none

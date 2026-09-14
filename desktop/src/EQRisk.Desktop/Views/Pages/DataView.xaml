@@ -1,0 +1,194 @@
+<UserControl x:Class="EQRisk.Desktop.Views.Pages.DataView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:EQRisk.Desktop.Views.Controls">
+    <StackPanel>
+        <c:PageHeader />
+
+        <!-- Keys: where each is set, never what it is. -->
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+                <DockPanel Margin="0,0,0,6">
+                    <Button DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" Command="{Binding TestConnectionsCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE774;" FontSize="13" Margin="0,0,9,0" />
+                            <TextBlock Text="Test connections" />
+                        </StackPanel>
+                    </Button>
+                    <TextBlock Style="{StaticResource H2}" Text="API keys" VerticalAlignment="Center" Margin="0" />
+                </DockPanel>
+                <TextBlock Style="{StaticResource Note}" Margin="0,0,0,12" MaxWidth="860" HorizontalAlignment="Left"
+                           Text="A key set here is encrypted for your Windows account (DPAPI) and takes the place of the value in the engine's .env file. Only jobs that download data receive keys. Values are never displayed." />
+                <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Keys}">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="KEY" Width="240">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Env}" Style="{StaticResource TextCell}" FontFamily="{StaticResource MonoFont}" FontSize="12" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="USED FOR" Binding="{Binding Purpose}" Width="*" ElementStyle="{StaticResource TextCell}" />
+                        <DataGridTextColumn Header="NEEDED" Binding="{Binding Required}" Width="90" ElementStyle="{StaticResource TextCell}" />
+                        <DataGridTemplateColumn Header="SET IN" Width="210">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource Pill}" Margin="10,0" Background="{Binding Tone, Converter={StaticResource ToneDimBrush}}">
+                                        <TextBlock Text="{Binding Source}" FontSize="11.5" Foreground="{Binding Tone, Converter={StaticResource ToneBrush}}" />
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Width="170">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="6,0">
+                                        <Button Style="{StaticResource GhostButton}" Content="Set…" CommandParameter="{Binding}"
+                                                Command="{Binding DataContext.SetKeyCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+                                        <Button Style="{StaticResource GhostButton}" Content="Remove" CommandParameter="{Binding}"
+                                                Command="{Binding DataContext.RemoveKeyCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                Visibility="{Binding InVault, Converter={StaticResource VisibleWhen}}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <TextBlock Style="{StaticResource Note}" Text="{Binding DoctorNote}" Margin="0,14,0,0"
+                           Visibility="{Binding DoctorNote, Converter={StaticResource VisibleWhen}}" />
+                <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Doctor}" Margin="0,14,0,0" MaxHeight="340"
+                          Visibility="{Binding Doctor, Converter={StaticResource VisibleWhen}}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="SOURCE" Binding="{Binding Check}" Width="230" ElementStyle="{StaticResource TextCell}" />
+                        <DataGridTemplateColumn Header="RESULT" Width="90">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource PillTemplate}" Margin="10,0" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="DETAIL" Binding="{Binding Detail}" Width="*" ElementStyle="{StaticResource LongTextCell}" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </StackPanel>
+        </Border>
+
+        <TextBlock Style="{StaticResource H2}" Text="On disk" Margin="0,6,0,10" />
+        <ItemsControl ItemsSource="{Binding Stats}" Style="{StaticResource StatRail}" />
+        <Expander Header="Reference snapshots and watermarks" Margin="0,0,0,16">
+            <Grid Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding References}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="DATASET" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource TextCell}" />
+                        <DataGridTextColumn Header="LATEST SNAPSHOT" Binding="{Binding Value}" Width="150" ElementStyle="{StaticResource NumberCell}" />
+                    </DataGrid.Columns>
+                </DataGrid>
+                <DataGrid Grid.Column="2" Style="{StaticResource Table}" ItemsSource="{Binding Watermarks}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="WATERMARK" Binding="{Binding Name}" Width="*" ElementStyle="{StaticResource TextCell}" />
+                        <DataGridTextColumn Header="THROUGH" Binding="{Binding Value}" Width="150" ElementStyle="{StaticResource NumberCell}" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Expander>
+
+        <!-- Loading data: history, gaps and repairs. -->
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Style="{StaticResource H2}" Text="Load data" />
+                <TextBlock Style="{StaticResource Note}" MaxWidth="860" HorizontalAlignment="Left"
+                           Text="A daily update already downloads what it needs. Use these for history, gaps or repairs; each runs in the background and shows in the activity bar. Raw data is never overwritten: a changed download becomes a new version." />
+                <TabControl Margin="0,14,0,0" Background="Transparent" BorderThickness="0">
+                    <TabItem Header="One session">
+                        <StackPanel Orientation="Horizontal" Margin="0,16,0,4">
+                            <DatePicker SelectedDate="{Binding SessionDate}" Width="170" />
+                            <Button Style="{StaticResource SecondaryButton}" Content="Download this session" Margin="12,0,0,0"
+                                    Command="{Binding DownloadSessionCommand}" />
+                        </StackPanel>
+                    </TabItem>
+                    <TabItem Header="Date range">
+                        <StackPanel Margin="0,16,0,4">
+                            <StackPanel Orientation="Horizontal">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="FROM" />
+                                    <DatePicker SelectedDate="{Binding RangeStart}" Width="170" />
+                                </StackPanel>
+                                <StackPanel Margin="12,0,0,0">
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="TO" />
+                                    <DatePicker SelectedDate="{Binding RangeEnd}" Width="170" />
+                                </StackPanel>
+                                <Button Style="{StaticResource SecondaryButton}" Content="Download history" Margin="12,0,0,0"
+                                        VerticalAlignment="Bottom" Command="{Binding DownloadHistoryCommand}" />
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource Note}" Margin="0,12,0,0"
+                                       Text="Prices for every constituent in the window, and SEC filings for companies not yet stored. A full ten-year history takes a few hours, mostly EDGAR's rate limit, and resumes where it stopped." />
+                        </StackPanel>
+                    </TabItem>
+                    <TabItem Header="Override files">
+                        <StackPanel Margin="0,16,0,4">
+                            <TextBlock Style="{StaticResource Note}" Margin="0,0,0,12"
+                                       Text="After editing configs/overrides/ (ticker map, CIK links, share counts, industries), download what the files name, then rebuild staging." />
+                            <Button Style="{StaticResource SecondaryButton}" Content="Download override targets" HorizontalAlignment="Left"
+                                    Command="{Binding PullOverridesCommand}" />
+                        </StackPanel>
+                    </TabItem>
+                    <TabItem Header="Rebuild staging">
+                        <StackPanel Margin="0,16,0,4">
+                            <TextBlock Style="{StaticResource Note}" Margin="0,0,0,12">
+                                <Run Text="Rebuilds every staged table (identity, returns, market caps, fundamentals, universe) from the raw data on disk, through" />
+                                <Run Text="{Binding RawThrough, Mode=OneWay, StringFormat={}{0:yyyy-MM-dd}}" Foreground="{StaticResource Ink2Brush}" /><Run Text=". About a minute; the model is not touched." />
+                            </TextBlock>
+                            <Button Style="{StaticResource SecondaryButton}" Content="Rebuild staging" HorizontalAlignment="Left"
+                                    Command="{Binding RebuildStagingCommand}" />
+                        </StackPanel>
+                    </TabItem>
+                </TabControl>
+            </StackPanel>
+        </Border>
+
+        <!-- What staging could not resolve on its own. -->
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Style="{StaticResource H2}" Text="Data-quality exceptions" />
+                <TextBlock Style="{StaticResource Note}" Text="{Binding ExceptionsNote}" />
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="330" />
+                        <ColumnDefinition Width="16" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <ListBox x:Name="Issues" ItemsSource="{Binding ExceptionCounts}" SelectionMode="Multiple" MaxHeight="380"
+                             SelectionChanged="OnIssuesChanged" Background="Transparent" BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Width="280">
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding Count, StringFormat={}{0:N0}}" Style="{StaticResource Mono}" />
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Issue}" FontSize="12.5" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding Area}" Style="{StaticResource Note}" FontSize="11" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <DataGrid Grid.Column="2" Style="{StaticResource Table}" ItemsSource="{Binding Exceptions}" MaxHeight="380">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="TICKER" Binding="{Binding Ticker}" Width="80" ElementStyle="{StaticResource TextCell}" />
+                            <DataGridTextColumn Header="ISSUE" Binding="{Binding Issue}" Width="170" ElementStyle="{StaticResource TextCell}" />
+                            <DataGridTextColumn Header="FROM" Binding="{Binding Start, StringFormat={}{0:yyyy-MM-dd}}" Width="100" ElementStyle="{StaticResource NumberCell}" />
+                            <DataGridTextColumn Header="TO" Binding="{Binding End, StringFormat={}{0:yyyy-MM-dd}}" Width="100" ElementStyle="{StaticResource NumberCell}" />
+                            <DataGridTextColumn Header="DETAIL" Binding="{Binding Detail}" Width="*" ElementStyle="{StaticResource LongTextCell}" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

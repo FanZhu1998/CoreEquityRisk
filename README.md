@@ -24,7 +24,8 @@ uv run eqrisk init                        # folders, catalog, config validation,
 uv run eqrisk doctor                      # connectivity and entitlements
 uv run eqrisk backfill --end 2026-09-10   # ingest, stage, model (hours: EDGAR is rate-limited)
 uv run eqrisk validate                    # bias battery and the §1.3 scorecard -> reports/
-& ".\EQRisk Studio.bat"                   # open the app at http://127.0.0.1:8520
+powershell -ExecutionPolicy Bypass -File desktop\scripts\pack.ps1   # build the Windows app (.NET 10 SDK)
+.\desktop\artifacts\releases\EQRiskDesktop-win-Setup.exe             # install it; EQRisk opens
 ```
 
 `.env` keys (see `.env.example`):
@@ -39,7 +40,7 @@ uv run eqrisk validate                    # bias battery and the §1.3 scorecard
 
 Keys stay on this machine. They live only in `.env` (git-ignored), reach the code as pydantic
 `SecretStr`, and travel as query parameters that `safe_url` strips from every log line and
-exception message. The Studio reports each key as configured or missing and never reads its value.
+exception message. The desktop app shows where each key is set, never its value (see [Keys](#keys)).
 `tools/check_no_secrets.py` blocks a commit that carries a key — by filename, or by matching the
 values in your `.env` against the staged content — and runs automatically once you install the
 hook:
@@ -52,119 +53,121 @@ uv run python tools/check_no_secrets.py --history      # scan every commit on ev
 
 ## The app
 
-EQRisk Studio is the day-to-day interface: one window that loads data, estimates the factors,
-validates the model and publishes the results. Every button runs the same `eqrisk` command as the
-CLI and the scheduled job — the Studio starts them in the background and shows their progress. It
-never writes to the data store itself.
+EQRisk for Windows is the day-to-day interface: a native desktop app (C# on .NET 10, WPF) that
+loads data, estimates the factors, validates the model and publishes the results. Every button runs
+the same `eqrisk` command as the CLI and the scheduled task, in the background, with its progress
+in the activity bar. Pages read the model through the engine and never write to the data store.
+How it is built: `docs/DECISIONS.md` D-025.
 
-### Starting it
+### Installing it
 
-Double-click **`EQRisk Studio.bat`** in the project folder. It starts the server minimized (a window
-named *EQRisk Studio server*), waits for it to answer, then opens the Studio in its own Edge window
-with no browser toolbars, or in your default browser if Edge is not installed. If the server is
-already running it just opens the window.
+Build the installer once; it needs the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0):
 
 ```powershell
-uv run streamlit run app/studio.py        # the same app from a terminal, with the log in view
+powershell -ExecutionPolicy Bypass -File desktop\scripts\pack.ps1
 ```
 
-- It listens on **http://127.0.0.1:8520**, and on that address only, so it is not reachable from
-  your network. If 8520 is taken, change `PORT` at the top of the .bat.
-- For a desktop icon: **System › Jobs & settings › Settings › Create desktop shortcut**.
-- To stop it: **Settings › Shut down Studio**, or close the server window. A job that is running
-  keeps running and reappears the next time you open the Studio.
+It writes these to `desktop\artifacts\releases\`, which git ignores:
 
-### Your day in the app
+| File | Use |
+|---|---|
+| `EQRiskDesktop-win-Setup.exe` | Installs EQRisk for your account (no administrator rights) with Start menu and desktop shortcuts and an entry in *Installed apps*, installing the .NET 10 Desktop Runtime first if it is missing |
+| `EQRiskDesktop-win-Portable.zip` | Unzip anywhere and run `EQRisk.exe` |
+| `*.nupkg`, `releases.win.json` | What a GitHub release needs for in-app updates |
 
-1. Open the Studio. **Today** opens first and says where the model stands: the session it is
-   estimated through, the last published session (`LATEST_GOOD`), how the last daily update ended,
-   the market return (the country factor), the λF / λS volatility-regime multipliers, and the
-   cross-sectional R² with the name count.
-2. If sessions are pending, click **Run today's update**. Progress moves through six steps — *Wait
-   for data · Ingest · Stage · Exposures · Factor model · Gates* — with the live log underneath.
-   One session takes about five minutes.
-3. When it finishes the page refreshes itself and shows the quality gates of that run, the style
-   factor returns in units of their trailing volatility, the best and worst industries, and the λ
-   trend over the last year.
-4. If nothing is pending, Today says so and names the next session and when it can be estimated:
-   vendors publish end-of-day data after **18:30 ET** (`pipeline.vendor_ready_after_et`). A
-   **Re-run** button recomputes the last session from the raw data already on disk.
+The files are not code-signed, so the first time Windows SmartScreen may say it protected your PC:
+choose **More info › Run anyway**. Signing needs a code-signing certificate.
 
-**Use stored data only** appears beside the main button when the raw prices on disk already cover
-the pending sessions. It skips the downloads and re-estimates from what you have.
+It runs on Windows 10 version 2004 or later and on Windows 11. To run it from source instead:
+`dotnet run --project desktop\src\EQRisk.Desktop`.
 
-### Navigating
+On first start EQRisk looks for this project folder. A copy started from inside the folder finds
+it by itself; an installed copy asks for it in **Settings › Engine folder**. The folder needs its
+Python environment (`uv sync`). **Data** then lists each key and where it is set.
 
-Navigation is the bar across the top; *Explore*, *Portfolio* and *System* are menus.
+### A typical day
+
+1. Open EQRisk from the Start menu or the notification-area icon. **Today** says whether any
+   session is pending.
+2. Click **Run today's update**. The activity bar at the bottom follows its six steps — *Wait for
+   data · Ingest · Stage · Exposures · Factor model · Gates* — with the live log; one session takes
+   about five minutes. You can close the window: the update carries on.
+3. When it ends a notification says so, and every page moves to the new session. With the daily
+   schedule registered, this happens by itself every morning.
+
+### The window
+
+The rail on the left groups the pages; the status at its foot is the engine's (green when ready,
+amber while starting, red with the reason). The activity bar along the bottom shows the job that is
+running or just ended, its elapsed time, the steps of a daily update, its log, and **Stop**.
 
 | Page | What you do there |
 |---|---|
-| **Today** | Where the model stands, the one-click daily update, gate results, today's factor moves |
-| **Data** | Check keys and connections, see what is on disk, download history or one session, inspect data-quality exceptions |
-| **Estimate** | Catch up, re-estimate one session, rebuild the whole model history, watch model health |
-| **Validate** | Run the point-in-time backtest and read the §1.3 scorecard |
-| **Explore ▾** | Factor returns · Factor risk · Exposures · Specific risk |
-| **Portfolio ▾** | Portfolio analyzer · Optimizer |
-| **System ▾** | Publish · Jobs & settings |
+| **Today** | Where the model stands: estimated through, last published (`LATEST_GOOD`), the last update, the market return, λF / λS, R². **Run today's update** when sessions are pending, or **Re-run** the last one. The gates of the last run, today's style moves, the best and worst industries, the λ trend |
+| **Data** | The API keys and where each is set; **Test connections** (`eqrisk doctor`); what is on disk; load **One session**, a **Date range**, the **Override files**, or **Rebuild staging**; data-quality exceptions by type |
+| **Estimate** | Catch up; re-estimate one session from a **Fresh download**, **Stored data** or **Stored staging**; rebuild the whole model history (behind a confirmation); fit and regime charts; that session's factor returns |
+| **Validate** | Run the point-in-time backtest over a window; the §1.3 scorecard, the §11.3 external checks, the factor bias chart with its sampling band, the eigenfactor smile, specific-risk bias by decile |
+| **Explore** | **Factor returns** (cumulative, pick the factors), **Factor risk** (volatilities and the correlation heatmap: hover a cell), **Exposures** and **Specific risk** (every name, searchable), each for an **As of** date |
+| **Portfolio** | **Portfolio analyzer**: open a CSV of `ticker,weight` (add `bench_weight` for active risk) or edit the holdings, then **Analyze risk**. **Optimizer**: factor form (cvxpy) or Riskfolio, with exposure bands, a tracking-error cap, turnover and an optional factor tilt |
+| **System** | **Jobs & runs** (every job with its full log, and the pipeline run manifests), **Publish** (the static viewer, an `.npz` snapshot, monthly compaction), **Settings** |
 
-**Explore** and **Portfolio** show one date at a time. Open the sidebar with the arrow at the top
-left to change the **As of** date; it defaults to the latest published session.
+One job runs at a time, whether it was started here, in a terminal or by the schedule, and a job
+that needs a key that is not set says which before it starts. Nothing is published unless the
+gates pass: a FAIL quarantines the session and `LATEST_GOOD` stays where it was, so every page, the
+viewer and the snapshots keep serving the last good model.
 
-**Data** reports each `.env` key as *configured* or *missing* — never its value. **Test connections**
-runs the same checks as `eqrisk doctor` (reachability and entitlements, per vendor), and **Reload
-.env** picks up an edited file without restarting. *Load data* has four tabs: **One session** for a
-single day, **Date range** for history (a full ten-year build takes a few hours, mostly EDGAR's rate
-limit, and resumes where it stopped), **Override files** for what `configs/overrides/` names, and
-**Rebuild staging** to rebuild every staged table from raw data in about a minute. A daily update
-already downloads what it needs, so these are for history, gaps and repairs.
+### Keys
 
-**Estimate** does the same work as Today plus two things Today does not: *Re-estimate one session*
-with the data source you choose — **Fresh download**, **Stored data**, or **Stored staging** (skips
-restaging, fastest) — and, behind a confirmation, *Rebuild the whole model history*, which takes
-about an hour and is what you run after changing parameters in `configs/model_us_lc.yaml`.
+Keys can stay in `.env`. To keep them out of the project folder altogether, use **Data › API keys ›
+Set…**: the value is encrypted with Windows DPAPI for your account and stored in
+`%LOCALAPPDATA%\EQRisk\vault.json`. A key set in the app takes the place of the one in `.env`. Only
+jobs that download receive keys, as environment variables of that one process; the engine's read
+server never sees them, and no page, log or dialog shows a value.
 
-**Validate** takes a window (2019-01-02 to the last session by default) and runs the backtest. The
-scorecard lists every success criterion as PASS, FAIL or not-yet-measurable, next to the external
-checks (§11.3), the factor bias chart with its sampling band, the eigenfactor smile before and
-after the adjustment, and specific-risk bias by size and volatility decile.
+### The notification-area icon
 
-**System › Publish** exports the static offline viewer (model outputs only, about 1 MB, no vendor
-prices or fundamentals), serves it on 127.0.0.1:8000, writes a `.npz` snapshot for notebooks and
-optimizers, and compacts a finished month's daily files into one file per table.
+Closing the window leaves EQRisk in the notification area, in Windows efficiency mode, so a running
+or scheduled update is never cut short (switch this off in **Settings**). The icon's dot is green
+when the model is up to date, amber when a session is pending and red on a problem; a ring shows an
+update's progress. Click it for a summary and **Run today's update**, double-click to open the
+window, right-click for the menu, which has **Exit EQRisk**. **Settings › Start with Windows** puts it
+there at sign-in.
 
-**System › Jobs & settings** has five tabs: **Studio jobs** (every job this app has run, with its
-full log), **Pipeline runs** (the run manifests — config hash, git SHA, gates, timings), **Daily
-schedule** (register, run or remove the Windows task `EQRisk Daily`, 06:30 by default; see
-`docs/RUNBOOK.md` §2), **Settings** (model parameters, data sources, paths, desktop shortcut, shut
-down), and **Runbook & decisions**, which renders `RUNBOOK.md`, `DECISIONS.md` and this README in
-the app.
+### The daily schedule
 
-### How it behaves
+**Settings › Daily schedule › Schedule** registers the Windows task `EQRisk Daily` (06:30 by
+default). It runs `EQRisk.exe --run-daily` as you, with no window, and catches up after sleep; the
+run appears in **Jobs & runs**. The app and the task never run two jobs at once. Exit codes and the
+command-line alternative are in `docs/RUNBOOK.md` §2.
 
-- **One job at a time.** A button that cannot start explains why on hover: another job is running,
-  the scheduled job is running, or a required key is missing. You can use the Studio, the scheduled
-  task, or both.
-- **Jobs outlive the window.** Closing the Studio does not stop a running job. Logs go to
-  `logs/studio/`, and the job reappears when you come back.
-- **Keys are never displayed.** Only *configured* or *missing*; see the key table above.
-- **Raw data is immutable.** A download whose contents differ becomes a new version; nothing is
-  overwritten.
-- **Nothing is published unless the gates pass.** A FAIL gate quarantines the session and
-  `LATEST_GOOD` does not advance, so the viewer, the snapshots and the workbench keep serving the
-  last good model.
+### Updates
+
+A copy installed with Setup.exe checks GitHub Releases when it starts (switch this off in
+**Settings**) and installs an update from **Settings › Updates**. While the repository is private,
+this needs a read-only token (**Set token…**), kept in the same vault. Releasing is manual: attach
+the files `pack.ps1` wrote to a GitHub release.
+
+### Where things are
+
+| What | Where |
+|---|---|
+| Settings, the key vault, the job history | `%LOCALAPPDATA%\EQRisk\` (`settings.json`, `vault.json`, `eqrisk.db`) |
+| The app's log, one file a day | `%LOCALAPPDATA%\EQRisk\logs\` |
+| Each job's full output | `%LOCALAPPDATA%\EQRisk\logs\jobs\` |
+| Model data, reports, the viewer | this folder: `data/`, `reports/`, `site/` |
 
 ### If something goes wrong
 
 | Symptom | What to do |
 |---|---|
-| The window opens blank, or not at all | Look at the *EQRisk Studio server* window for the error, or start it with `uv run streamlit run app/studio.py` to see the log |
-| "Missing in .env: …" | Add the keys to `.env`, then **Data › Reload .env**. No restart needed |
-| A job failed | Its log panel opens by itself; the full log is in **System › Studio jobs** and under `logs/studio/` |
-| A session was quarantined | A FAIL gate fired. **Today** names the gate; `docs/RUNBOOK.md` §3 covers the recovery |
-| Port 8520 already in use | The launcher opens whatever is already listening. To move it, change `PORT` in the .bat |
+| The engine status is red | It names the reason. Usually **Settings › Engine folder** needs this folder, or `.venv` is missing (`uv sync`). The app log has the details |
+| A job will not start for a missing key | Set it in **Data › API keys**, or add it to `.env` |
+| A job failed | Its log is in the activity bar; the full log is in **Jobs & runs** |
+| A session was quarantined | A FAIL gate fired. **Today** names it; `docs/RUNBOOK.md` §3 covers the recovery |
+| Nothing happens when you start EQRisk | It is already running: starting it again brings that window forward. If nothing appears, read the app log |
 
-The older eight-page workbench is still there (`uv run eqrisk ui`, port 8501) and shares the
-Studio's theme; the Studio's *Explore* and *Portfolio* menus are those same pages.
+The eight-page Streamlit workbench (`uv run eqrisk ui`, §15.1) and the static viewer (§15.2) are
+still there for a browser.
 
 ## Commands
 
@@ -216,18 +219,21 @@ model        eqrisk/model/        panels, descriptors, exposures, regression, co
 outputs      eqrisk/analytics/    portfolio risk decomposition
              eqrisk/validation/   bias batteries, §11.2 backtest, §1.3 scorecard
              eqrisk/optimize/     factor-form and riskfolio optimizers
-             eqrisk/pipeline/     orchestration: ingest, stage, model_run, daily, gates, export
+             eqrisk/pipeline/     orchestration: ingest, stage, model_run, daily, gates, export,
+                                  and feed.py, the read server behind the desktop app
              eqrisk/cli.py        the only entry point that runs work
 
-UI           app/studio.py        EQRisk Studio: the daily app (studio_lib/, studio_pages/)
+UI           desktop/             EQRisk for Windows: the C# / .NET 10 / WPF app (D-025)
              app/main.py          the eight-page workbench (views/, common.py)
              site_template/       static offline viewer (index.html, app.js, analyzer.js)
 ```
 
-The UI reads model outputs through `ModelStore` and starts everything else as an `eqrisk` CLI
-job, so it never writes to the store and cannot collide with the scheduled run.
+The UI reads model outputs through `ModelStore` (the desktop app through `eqrisk serve`, which
+wraps it) and starts everything else as an `eqrisk` CLI job, so it never writes to the store and
+cannot collide with the scheduled run.
 
 ```text
+desktop/           EQRisk.slnx: Core, Infrastructure, Presentation, Desktop and their tests; scripts/
 configs/           model YAML (every parameter), presets, sources, EDGAR concept map, overrides/
 tools/             check_no_secrets.py (pre-commit and CI guard)
 tests/             unit tests; tests/golden/ runs the §17 phase acceptance on real data
@@ -244,10 +250,12 @@ uv run pytest tests/test_architecture.py       # layer boundaries: data / model 
 uv run ruff check .
 uv run mypy eqrisk app                         # strict, whole codebase
 uv run python tools/check_no_secrets.py --all  # no key or vendor data in any tracked file
+powershell -File desktop\scripts\check.ps1     # the desktop app: warning-free build and every C# test
 ```
 
 `uv run pre-commit install` runs ruff, mypy, the layer checks and the secret guard on every
-commit. All hooks run from this project's environment, so they need no downloads.
+commit, and the desktop build and tests when `desktop/` changes. All hooks run from this project's
+environment and the installed .NET SDK, so they need no downloads.
 
 | Suite | Covers |
 |---|---|
@@ -257,7 +265,9 @@ commit. All hooks run from this project's environment, so they need no downloads
 | `tests/validation/`, `tests/pipeline/` | bias batteries, scorecard, §11.4 gates |
 | `tests/test_architecture.py` | the layer boundaries above |
 | `tests/tools/` | the commit guard, in both directions |
-| `tests/ui/` | the job runner, and every Studio and workbench page rendering on real data |
+| `tests/pipeline/test_feed.py` | the desktop app's read server: every read on real data, the wire protocol, no key in any response |
+| `tests/ui/` | the static viewer's JavaScript analyzer against the Python algebra |
+| `desktop/tests/` | the app's layers and service graph, the engine protocol against the real engine, jobs and their cleanup, the key vault, the scheduler, every view model |
 
 ## License
 

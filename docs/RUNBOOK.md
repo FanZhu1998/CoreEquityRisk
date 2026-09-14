@@ -55,8 +55,23 @@ Where to look:
 
 ## 2. Scheduling on Windows
 
-Run once every morning at 06:30; catch-up handles missed days (laptop asleep, vendor late). In a
-PowerShell window:
+Run once every morning at 06:30; catch-up handles missed days (laptop asleep, vendor late).
+
+**From the desktop app (the usual way).** *Settings › Daily schedule › Schedule* registers the task
+`EQRisk Daily` for your Windows account, and *Run now* and *Remove* manage it. The task runs
+`EQRisk.exe --run-daily`: the daily update with no window, recorded in *Jobs & runs* like any other
+job, with the keys from the app's vault or `.env`. Task Scheduler's "last result" is its exit code:
+
+| Code | Meaning |
+|---|---|
+| 0 | The update succeeded, or one was already running (in the app or a terminal), so there was nothing to do |
+| 1 | The update ran and failed; its log is in *Jobs & runs* and under `%LOCALAPPDATA%\EQRisk\logs\jobs` |
+| 2 | It could not start, usually because the engine folder is not set (*Settings › Engine folder*) |
+
+Register the task from the copy installed with Setup.exe: its path stays the same across updates,
+while a development build's path changes when the folder is cleaned.
+
+**Without the app.** In a PowerShell window:
 
 ```powershell
 $root = "C:\Users\Alcor\Projects\CoreEquityRisk"

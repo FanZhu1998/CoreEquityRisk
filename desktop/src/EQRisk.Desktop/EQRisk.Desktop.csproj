@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The Windows app: WPF views in XAML, the tray icon, native window effects, hosting, logging and
+       updates. It composes the other layers and holds no model logic of its own. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>EQRisk</AssemblyName>
+    <RootNamespace>EQRisk.Desktop</RootNamespace>
+    <ApplicationIcon>Assets\eqrisk.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <StartupObject>EQRisk.Desktop.Program</StartupObject>
+    <!-- LibraryImport generates the P/Invoke marshalling stubs, which need unsafe code. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Program.Main starts Velopack before WPF, so App.xaml is an ordinary page, not the entry point.
+         Switching the default off (rather than removing the item afterwards) means no build, in any
+         context, can treat App.xaml as the application and generate a Main of its own. -->
+    <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EQRisk.Core\EQRisk.Core.csproj" />
+    <ProjectReference Include="..\EQRisk.Infrastructure\EQRisk.Infrastructure.csproj" />
+    <ProjectReference Include="..\EQRisk.Presentation\EQRisk.Presentation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="H.NotifyIcon.Wpf" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <!-- NU1701: ScottPlot.WPF needs SkiaSharp.Views.WPF 3.119, whose only builds target .NET Framework;
+         ScottPlot supports it on .NET's WPF. Referenced directly so the suppression names exactly that package. -->
+    <PackageReference Include="ScottPlot.WPF" NoWarn="NU1701" />
+    <PackageReference Include="SkiaSharp.Views.WPF" NoWarn="NU1701" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Extensions.Hosting" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="Velopack" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\Fonts\*.ttf" />
+    <Resource Include="Assets\eqrisk.ico" />
+    <Resource Include="Assets\eqrisk-mark.png" />
+    <!-- Charts draw with SkiaSharp, which reads fonts from files, so the same faces also ship loose. -->
+    <Content Include="Assets\Fonts\*.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Fonts\LICENSE-*.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\sample_holdings.csv" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="EQRisk.Desktop.Tests" />
+  </ItemGroup>
+
+  <!-- WPF leaves System.IO out of implicit usings (System.Windows.Shapes.Path would clash); nothing here
+       imports Shapes, so the file APIs are imported project-wide. -->
+  <ItemGroup>
+    <Using Include="System.IO" />
+  </ItemGroup>
+
+</Project>
