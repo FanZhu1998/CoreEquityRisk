@@ -151,24 +151,37 @@ def known_ciks(project: Project) -> list[int]:
     return sorted(int(p.name.split("=", 1)[1]) for p in base.glob("cik=*")) if base.exists() else []
 
 
-def edgar_incremental(project: Project, d: date) -> IngestReport:
-    """Re-pull companies that filed a periodic report since the watermark (one index file per day)."""
+def edgar_incremental(project: Project, d: date, edgar: Edgar | None = None) -> IngestReport:
+    """Re-pull companies that filed a periodic report since the watermark (one index file per day).
+
+    SEC publishes a daily index for business days only, some hours after the close. A day without one
+    is a weekend or holiday, or not published yet, and which it was shows only once a later day has an
+    index. So the watermark moves to the last day that had one, and the days after it are asked for
+    again next run instead of being skipped for good (DECISIONS D-026).
+    """
     wm = load_watermarks(project)
     last = date.fromisoformat(wm["edgar_daily_index"]) if "edgar_daily_index" in wm \
         else d - timedelta(days=_EDGAR_FIRST_LOOKBACK_DAYS)
-    edgar = Edgar(project.sources, project.settings.sec_user_agent)
+    edgar = edgar or Edgar(project.sources, project.settings.sec_user_agent)
     known = set(known_ciks(project))
     forms = set(project.sources.edgar.forms)
     touched: set[int] = set()
+    through = last
+    without_index: list[str] = []
     day = last + timedelta(days=1)
     while day <= d:
         idx = edgar.daily_index(day)
         if idx.height:
             write_raw(idx, project.raw_dir / "edgar" / "daily_index" / f"date={day.isoformat()}")
             touched |= set(idx.filter(pl.col("form").is_in(sorted(forms)))["cik"].to_list()) & known
+            through = day
+        else:
+            without_index.append(day.isoformat())
         day += timedelta(days=1)
     rep = pull_edgar(project, edgar, touched, refresh=True)
-    save_watermarks(project, {"edgar_daily_index": d.isoformat()})
+    if through > last:
+        save_watermarks(project, {"edgar_daily_index": through.isoformat()})
+    log.info("edgar daily index", through=through.isoformat(), without_index=without_index, refreshed=len(touched))
     return rep
 
 

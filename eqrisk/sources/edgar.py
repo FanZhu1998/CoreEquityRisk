@@ -147,7 +147,7 @@ class Edgar:
         url = f"{self.cfg.www_url}/Archives/edgar/daily-index/{d.year}/QTR{q}/master.{d:%Y%m%d}.idx"
         try:
             return parse_daily_index(self.http.get(url).content.decode("latin-1"))
-        except NotFoundError:          # weekends, holidays, and days not yet published
+        except NotFoundError:          # weekends, holidays, days not yet published (SEC answers 403)
             return parse_daily_index("")
 
 

@@ -191,6 +191,7 @@ def run_daily(project: Project, through: date | None = None, *, offline: bool = 
     for d in pending:
         results = gate_results(load_day(project, d), cfg.gates, set(FUNDAMENTAL_STYLES))
         status = status_of(results)
+        log.info("gates evaluated", session=str(d), status=status, not_ok=[r["gate"] for r in results if not r["ok"]])
         m = _manifest(project, d, f"{command} --date {d}", status, results,
                       {"sessions": [str(x) for x in pending], "timings": {k: round(v, 2) for k, v in clock.items()}},
                       started)

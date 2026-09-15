@@ -15,9 +15,19 @@ public sealed class DailyProgressTests
     [InlineData("ingested\nstaging through=2026-09-14", 2)]
     [InlineData("ingested\nstaging\ndescriptors sessions=2691 sids=1300", 3)]
     [InlineData("descriptors sessions=2691\nexposures first=2019-01-02", 4)]
-    [InlineData("exposures first=2019-01-02\nnotify title=EQRisk", 5)]
+    [InlineData("exposures first=2019-01-02\ngates evaluated session=2026-09-14 status=OK", 5)]
     public void The_latest_step_reached_is_current(string log, int step) =>
         Assert.Equal(step, DailyProgress.CurrentStep(log));
+
+    [Fact]
+    public void A_run_that_fails_while_ingesting_stays_on_ingest()
+    {
+        // The 2026-09-15 run: SEC refused a weekend index during ingest, and the failure notice that
+        // followed must not move the strip on to the gates.
+        var log = "ingested dataset=company_tickers rows=10422 source=edgar\n"
+                  + "notify body='2026-09-14..2026-09-14: master.20260912.idx -> HTTP 403' title='EQRisk us_lc_v1: run FAILED'";
+        Assert.Equal(1, DailyProgress.CurrentStep(log));
+    }
 
     [Fact]
     public void There_are_six_steps_ending_with_the_gates()
