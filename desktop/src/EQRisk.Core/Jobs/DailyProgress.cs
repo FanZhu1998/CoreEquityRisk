@@ -17,7 +17,7 @@ public static class DailyProgress
         new("Stage", ["staging", "security master", "fundamentals staged"]),
         new("Exposures", ["descriptors"]),
         new("Factor model", ["exposures"]),      // regression, covariance and specific risk follow this line
-        new("Gates", ["notify"]),
+        new("Gates", ["gates evaluated"]),       // not "notify": a failed run notifies too, from any step
     ];
 
     /// <summary>Index of the latest step whose marker appears in the log so far (0 before any).</summary>

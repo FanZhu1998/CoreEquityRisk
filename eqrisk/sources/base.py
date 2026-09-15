@@ -8,6 +8,7 @@ message or a log line.
 
 from __future__ import annotations
 
+import re
 import threading
 import time
 from abc import ABC, abstractmethod
@@ -32,7 +33,7 @@ class EntitlementError(SourceError):
 
 
 class NotFoundError(SourceError):
-    """HTTP 404: the vendor has no such object (symbol, CIK, file)."""
+    """HTTP 404, or an S3-style 403 for a missing file: the vendor has no such object (symbol, CIK, file)."""
 
 
 class CostGuardError(SourceError):
@@ -43,6 +44,13 @@ def safe_url(url: str | httpx.URL) -> str:
     """scheme://host/path with the query string dropped (API keys live there)."""
     parts = urlsplit(str(url))
     return f"{parts.scheme}://{parts.netloc}{parts.path}"
+
+
+# S3-style storage answers 403 AccessDenied, not 404, for a file that does not exist, because a public
+# bucket cannot be listed. SEC EDGAR's Archives work this way: weekend and holiday daily indexes, a
+# quarter not started (DECISIONS D-026). That is "no such object". A real refusal (SEC's rate limit, a
+# missing User-Agent) is an HTML page and stays an EntitlementError.
+_S3_MISSING = re.compile(rb"<Error>\s*<Code>(?:AccessDenied|NoSuchKey)</Code>")
 
 
 class RateLimiter:
@@ -96,6 +104,8 @@ class HttpClient:
         except (_Transient, httpx.TransportError) as exc:
             raise SourceError(f"{safe_url(url)}: gave up after {self._cfg.retries} attempts "
                               f"({type(exc).__name__}: {exc})") from None
+        if r.status_code == 403 and _S3_MISSING.search(r.content):
+            raise NotFoundError(f"{safe_url(url)} -> HTTP 403 (no such object)")
         if r.status_code in (401, 403):
             raise EntitlementError(f"{safe_url(url)} -> HTTP {r.status_code}")
         if r.status_code == 404:

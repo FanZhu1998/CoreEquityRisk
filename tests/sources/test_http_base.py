@@ -32,6 +32,24 @@ def test_entitlement_and_not_found_are_distinct(mock_http):
         http.get("https://h.example/gone")
 
 
+S3_MISSING = (b'<?xml version="1.0" encoding="UTF-8"?>\n'
+              b"<Error><Code>AccessDenied</Code><Message>Access Denied</Message></Error>")
+
+
+def test_an_s3_403_for_a_missing_file_is_not_found_but_a_real_refusal_still_fails(mock_http):
+    """SEC's Archives answer 403 AccessDenied for a file that does not exist (a weekend's daily index,
+    DECISIONS D-026); a rate limit or a missing User-Agent is an HTML page and must still stop the run."""
+    http = mock_http([("/missing", (403, S3_MISSING)),
+                      ("/nosuchkey", (403, b"<Error><Code>NoSuchKey</Code></Error>")),
+                      ("/blocked", (403, b"<html><body>Request Rate Threshold Exceeded</body></html>"))])
+    with pytest.raises(NotFoundError):
+        http.get("https://www.sec.gov/missing")
+    with pytest.raises(NotFoundError):
+        http.get("https://www.sec.gov/nosuchkey")
+    with pytest.raises(EntitlementError):
+        http.get("https://www.sec.gov/blocked")
+
+
 def test_rate_limiter_spaces_calls():
     limiter = RateLimiter(50.0)
     t0 = time.monotonic()

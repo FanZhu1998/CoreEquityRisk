@@ -3,7 +3,7 @@ from datetime import date
 import polars as pl
 import pytest
 
-from eqrisk.sources.base import SourceError
+from eqrisk.sources.base import EntitlementError, SourceError
 from eqrisk.sources.edgar import Edgar, parse_cik_lookup, parse_daily_index
 
 UA = "EQRisk test test@example.com"
@@ -56,6 +56,20 @@ def test_daily_index_parse(fixture_bytes):
 
 def test_daily_index_missing_day_is_empty(mock_http, sources):
     assert Edgar(sources, UA, http=mock_http([])).daily_index(date(2024, 2, 3)).height == 0
+
+
+def test_daily_index_for_a_weekend_is_empty_although_sec_answers_403(mock_http, sources):
+    """The 2026-09-15 failure: SEC's storage answers 403 AccessDenied for Saturday's missing index."""
+    body = b'<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>Access Denied</Message></Error>'
+    http = mock_http([("/master.20260912.idx", (403, body))])
+    assert Edgar(sources, UA, http=http).daily_index(date(2026, 9, 12)).height == 0
+
+
+def test_daily_index_refused_by_sec_still_fails(mock_http, sources):
+    """A rate limit or a missing User-Agent is an HTML page, never mistaken for a day without filings."""
+    http = mock_http([("/master.", (403, b"<html><body>Request Rate Threshold Exceeded</body></html>"))])
+    with pytest.raises(EntitlementError):
+        Edgar(sources, UA, http=http).daily_index(date(2026, 9, 14))
 
 
 def test_cik_lookup_parse(fixture_bytes):

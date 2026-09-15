@@ -625,3 +625,26 @@ engine process behind. `desktop/scripts/pack.ps1` produced Setup.exe (19.3 MB) a
 (15 MB), and the packaged build starts and reads the engine. Not exercised by hand: the tray menu
 and flyout, and `--run-daily` against the vendors (its exit codes are unit-tested; running it would
 download data).
+
+## D-026 · EDGAR daily index: missing days and the watermark (2026-09-15)
+
+**Observation.** The daily update for 2026-09-14 stopped in ingest: SEC answered HTTP 403 for the
+daily index of Saturday 2026-09-12. SEC's Archives sit on S3-style storage, which answers
+`403 AccessDenied` (a small XML error body), not 404, for any file that does not exist: weekends,
+holidays (Labor Day and Columbus Day checked), a quarter not yet started. The client treated only
+404 as "no index that day", so the first weekend inside the incremental window failed the run. The
+same loop then set the watermark to the session date even when that day's index was only not
+published yet, so a run before SEC publishes would have skipped that day's filings for good. The
+desktop progress strip also showed the failure under Gates: it took the engine's `notify` event,
+which a failed run sends from any step, as the Gates marker.
+
+**Decision.**
+- `HttpClient` maps a 403 whose body is an S3 error with code `AccessDenied` or `NoSuchKey` to
+  `NotFoundError`. A real refusal (SEC's rate limit or a missing User-Agent, both HTML pages) is
+  still an `EntitlementError` and still stops the run.
+- `edgar_incremental` moves the `edgar_daily_index` watermark to the last day that had an index. The
+  days after it are asked for again on the next run, and a weekend or holiday settles as soon as a
+  later day's index appears. Point in time is unchanged: a filing counts from the first trading day
+  after its filing date, whichever run picks it up.
+- `run_daily` logs `gates evaluated` once a session's gates are computed, and the desktop app marks
+  its Gates step by that event instead of `notify`.
