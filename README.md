@@ -78,6 +78,11 @@ It writes these to `desktop\artifacts\releases\`, which git ignores:
 The files are not code-signed, so the first time Windows SmartScreen may say it protected your PC:
 choose **More info › Run anyway**. Signing needs a code-signing certificate.
 
+API keys are never part of the build: the engine reads them from `.env` and the app from its
+per-user vault, while running. `pack.ps1` compares the publish folder and the finished packages
+(opened up) with your `.env` values and refuses to package on a match; run the same check on any
+folder with `uv run python tools/check_no_secrets.py --scan <folder>`.
+
 It runs on Windows 10 version 2004 or later and on Windows 11. To run it from source instead:
 `dotnet run --project desktop\src\EQRisk.Desktop`.
 

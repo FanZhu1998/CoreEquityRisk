@@ -5,6 +5,7 @@ Runs as the pre-commit hook (.pre-commit-config.yaml) and as a standalone check:
     uv run python tools/check_no_secrets.py             # what is staged right now
     uv run python tools/check_no_secrets.py --all       # every tracked file
     uv run python tools/check_no_secrets.py --history   # every blob in every commit
+    uv run python tools/check_no_secrets.py --scan desktop/artifacts   # build output, installers
 
 Three independent guards, because each catches a different mistake:
 
@@ -15,16 +16,26 @@ Three independent guards, because each catches a different mistake:
                 Skipped for the two files in PATTERN_EXEMPT, which hold deliberate fixtures; guard
                 2 still applies to them.
 
+--scan is guard 2 for files git never sees: compiled output and the installer, which may be
+published as a GitHub release. Every file is compared byte for byte with the .env values in the
+forms a build could hold them (text, UTF-16 as .NET stores strings, URL-encoded, base64), and zip
+archives (.nupkg, .zip) are opened and checked inside. desktop/scripts/pack.ps1 runs it before and
+after packaging.
+
 The failure message names the file and the variable, never the secret.
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
+import io
 import re
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
+from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parents[1]
 SELF = "tools/check_no_secrets.py"
@@ -168,14 +179,69 @@ def scan_history(secrets: dict[str, str]) -> list[str]:
     return bad
 
 
+def encodings(secrets: dict[str, str]) -> list[tuple[str, str, bytes]]:
+    """Each .env value in the forms a compiled file could hold it, as (variable, form, bytes)."""
+    out: list[tuple[str, str, bytes]] = []
+    seen: set[bytes] = set()
+    for name, value in secrets.items():
+        for form, needle in (("text", value.encode()), ("UTF-16 text", value.encode("utf-16-le")),
+                             ("URL-encoded", quote(value, safe="").encode()),
+                             ("base64", base64.b64encode(value.encode()).rstrip(b"="))):
+            if needle not in seen:
+                seen.add(needle)
+                out.append((name, form, needle))
+    return out
+
+
+def _scan_blob(label: str, blob: bytes, needles: list[tuple[str, str, bytes]], depth: int = 0) -> list[str]:
+    bad = [f"{label}: contains the value of {name} from .env ({form})"
+           for name, form, needle in needles if needle in blob]
+    if depth < 3 and zipfile.is_zipfile(io.BytesIO(blob)):
+        try:
+            with zipfile.ZipFile(io.BytesIO(blob)) as archive:
+                for entry in archive.infolist():
+                    if not entry.is_dir():
+                        bad += _scan_blob(f"{label} > {entry.filename}", archive.read(entry), needles, depth + 1)
+        except (zipfile.BadZipFile, NotImplementedError):
+            pass      # not really an archive; its raw bytes were checked above
+    return bad
+
+
+def scan_files(roots: list[str], secrets: dict[str, str]) -> tuple[list[str], int]:
+    """Build output and packages, which git never sees: every file under each root (archives opened)
+    compared with the .env values. Credential patterns are not used here, because compiled files are
+    full of strings shaped like tokens. Returns the problems and the number of files read."""
+    needles = encodings(secrets)
+    bad: list[str] = []
+    scanned = 0
+    for root in roots:
+        base = Path(root)
+        files = [base] if base.is_file() else sorted(p for p in base.rglob("*") if p.is_file())
+        if not files:
+            bad.append(f"{root}: no files to scan")
+        for path in files:
+            scanned += 1
+            bad += _scan_blob(str(path), path.read_bytes(), needles)
+    return bad, scanned
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--all", action="store_true", help="scan every tracked file, not just staged changes")
     ap.add_argument("--history", action="store_true", help="scan every blob in every commit")
+    ap.add_argument("--scan", nargs="+", metavar="PATH",
+                    help="scan build output or packages that git never sees (files or folders; archives are opened)")
     args = ap.parse_args()
 
     secrets = env_secrets()
-    if args.history:
+    if args.scan:
+        bad, scanned = scan_files(args.scan, secrets)
+        what = f"build output ({scanned} files, archives opened, {len(encodings(secrets))} encoded forms)"
+        if not bad:
+            checked = f"{len(secrets)} .env value(s)" if secrets else "no local .env"
+            print(f"ok: no .env value in {what}, compared against {checked}")
+            return 0
+    elif args.history:
         what, bad = "commit history", scan_history(secrets)
     elif args.all:
         what, bad = "tracked files", scan_tracked(secrets)

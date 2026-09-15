@@ -15,6 +15,10 @@
     The installed app finds the engine by the folder chosen in Settings; a copy run from inside the
     CoreEquityRisk checkout finds it on its own.
 
+    API keys are never part of the build: the engine reads them from its .env and the app from its
+    per-user vault, while running. To keep it that way, the publish folder and the finished packages
+    are compared with the .env values (tools/check_no_secrets.py --scan), and nothing ships on a match.
+
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File desktop\scripts\pack.ps1
     powershell -ExecutionPolicy Bypass -File desktop\scripts\pack.ps1 -Version 0.2.1
@@ -26,6 +30,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $desktop = Split-Path -Parent $PSScriptRoot
+$repo = Split-Path -Parent $desktop
 $dotnet = (Get-Command dotnet -ErrorAction SilentlyContinue).Source
 if (-not $dotnet) { $dotnet = Join-Path $env:ProgramFiles "dotnet\dotnet.exe" }
 if (-not $Version) {
@@ -36,12 +41,23 @@ $publish = Join-Path $desktop "artifacts\publish"
 $releases = Join-Path $desktop "artifacts\releases"
 if (Test-Path $publish) { Remove-Item $publish -Recurse -Force }
 
+# No value from .env may reach what ships. Needs the engine's environment (uv sync) to run the check.
+function Assert-NoSecrets([string[]]$Paths) {
+    $python = Join-Path $repo ".venv\Scripts\python.exe"
+    if (-not (Test-Path $python)) { throw "No .venv: run 'uv sync' so the secret check can run before packaging" }
+    & $python (Join-Path $repo "tools\check_no_secrets.py") --scan $Paths
+    if ($LASTEXITCODE) { throw "A value from .env was found in the build output; nothing ships until it is removed" }
+}
+
 Push-Location $desktop
 try {
     Write-Host "Publishing EQRisk $Version ($Runtime)..."
     & $dotnet publish src\EQRisk.Desktop\EQRisk.Desktop.csproj -c Release -r $Runtime --self-contained false `
         -p:Version=$Version -o $publish
     if ($LASTEXITCODE) { throw "dotnet publish failed" }
+
+    Write-Host "Checking the build for API keys..."
+    Assert-NoSecrets @($publish)
 
     & $dotnet tool restore
     if ($LASTEXITCODE) { throw "dotnet tool restore failed" }
@@ -51,6 +67,16 @@ try {
         --packTitle EQRisk --packAuthors "Fan Zhu" --icon src\EQRisk.Desktop\Assets\eqrisk.ico `
         --framework net10.0-x64-desktop --outputDir $releases
     if ($LASTEXITCODE) { throw "vpk pack failed" }
+
+    Write-Host "Checking the packages for API keys..."
+    try {
+        Assert-NoSecrets @($releases)
+    }
+    catch {
+        Get-ChildItem $releases -File | Where-Object { $_.Name -like "*-win-*" -or $_.Name -like "*-$Version-*" } |
+            Remove-Item -Force
+        throw
+    }
 }
 finally {
     Pop-Location

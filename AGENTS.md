@@ -46,7 +46,7 @@ uv run eqrisk --help                     # CLI (§13.1)
 uv run eqrisk run-daily                  # daily catch-up with gates (docs/RUNBOOK.md)
 uv run eqrisk validate                   # bias battery and §1.3 scorecard -> reports/
 uv run eqrisk ui / export-site           # Streamlit workbench / static viewer in site/
-uv run python tools/check_no_secrets.py  # commit guard: --all tracked files, --history all commits
+uv run python tools/check_no_secrets.py  # commit guard: --all tracked, --history all commits, --scan build output
 uv run pre-commit install                # install the ruff, mypy, layer, secret and desktop hooks
 powershell -File desktop\scripts\check.ps1   # desktop app: build (warnings are errors) + all C# tests
 powershell -File desktop\scripts\pack.ps1    # desktop app: Setup.exe + portable zip -> desktop\artifacts\releases
