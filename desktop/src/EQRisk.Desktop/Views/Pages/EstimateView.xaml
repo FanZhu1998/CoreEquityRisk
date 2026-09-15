@@ -1,0 +1,108 @@
+<UserControl x:Class="EQRisk.Desktop.Views.Pages.EstimateView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:EQRisk.Desktop.Views.Controls">
+    <StackPanel>
+        <c:PageHeader />
+        <c:StepStrip Steps="{Binding Pipeline}" Current="-1" Margin="0,0,0,18" />
+
+        <Border Style="{StaticResource Card}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="32" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="Catch up" />
+                    <TextBlock Style="{StaticResource Note}" Text="{Binding PendingText}" Margin="0,0,0,14" />
+                    <Button Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Command="{Binding CatchUpCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE768;" FontSize="12" Margin="0,0,9,0"
+                                       Foreground="{StaticResource OnAccentBrush}" />
+                            <TextBlock Text="Estimate pending sessions" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Style="{StaticResource H2}" Text="Re-estimate one session" />
+                    <WrapPanel>
+                        <StackPanel Margin="0,0,12,0">
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="SESSION" />
+                            <DatePicker SelectedDate="{Binding Session}" DisplayDateEnd="{Binding LatestSession}" Width="160" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,12,0">
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="DATA" />
+                            <ComboBox ItemsSource="{Binding Sources}" SelectedItem="{Binding Source}" Width="190">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={StaticResource DataSourceText}}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+                        <Button Style="{StaticResource SecondaryButton}" Content="Re-estimate" Margin="0,8,0,0" VerticalAlignment="Bottom"
+                                Command="{Binding ReestimateCommand}" />
+                    </WrapPanel>
+                    <TextBlock Style="{StaticResource Note}" Margin="0,12,0,0"
+                               Text="Stored data restages from the raw files on disk; Fresh download pulls the session again; Stored staging re-estimates from the staged tables as they are." />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Expander Header="Rebuild the whole model history" Margin="0,0,0,16">
+            <StackPanel Margin="0,12,0,0">
+                <TextBlock Style="{StaticResource Note}" Margin="0,0,0,12" MaxWidth="860" HorizontalAlignment="Left">
+                    <Run Text="Recomputes exposures, factor returns, the factor covariance and specific risk for every session through" />
+                    <Run Text="{Binding RebuildThrough, Mode=OneWay, StringFormat={}{0:yyyy-MM-dd}}" Foreground="{StaticResource Ink2Brush}" /><Run Text=", and replaces the model tables. About an hour. Use it after changing parameters in configs/model_us_lc.yaml, then run a validation." />
+                </TextBlock>
+                <Button Style="{StaticResource DangerButton}" Content="Rebuild model history" HorizontalAlignment="Left"
+                        Command="{Binding RebuildModelCommand}" />
+            </StackPanel>
+        </Expander>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="Cross-sectional fit, last three years" />
+                    <TextBlock Style="{StaticResource Note}" Text="Cap-weighted R² of each day's regression." Margin="0,0,0,8" />
+                    <c:ChartView Chart="{Binding Fit}" Height="240" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="2" Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="Volatility regime, last three years" />
+                    <TextBlock Style="{StaticResource Note}" Text="λF scales factor risk and λS specific risk." Margin="0,0,0,8" />
+                    <c:ChartView Chart="{Binding Regime}" Height="240" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Style="{StaticResource H2}" Text="{Binding ReturnsTitle}" />
+                <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Returns}" MaxHeight="520">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="FACTOR" Binding="{Binding Factor}" Width="*" ElementStyle="{StaticResource TextCell}" />
+                        <DataGridTextColumn Header="GROUP" Binding="{Binding Group}" Width="110" ElementStyle="{StaticResource TextCell}" />
+                        <DataGridTemplateColumn Header="RETURN" Width="120">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Return}" Style="{StaticResource NumberCell}"
+                                               Foreground="{Binding Tone, Converter={StaticResource ToneBrush}}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="T-STAT" Binding="{Binding TStat}" Width="100" ElementStyle="{StaticResource NumberCell}" />
+                        <DataGridTextColumn Header="IN σ" Binding="{Binding Sigmas}" Width="100" ElementStyle="{StaticResource NumberCell}" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

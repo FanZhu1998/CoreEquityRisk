@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Domain types and contracts: the engine protocol records, the job catalog, key and settings
+       models, and the interfaces the other layers implement. No I/O, no Windows API, no UI.
+       It targets plain net10.0 (not -windows) so the compiler itself enforces that. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>EQRisk.Core</RootNamespace>
+  </PropertyGroup>
+
+</Project>

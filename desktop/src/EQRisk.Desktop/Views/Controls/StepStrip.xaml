@@ -1,0 +1,24 @@
+<UserControl x:Class="EQRisk.Desktop.Views.Controls.StepStrip"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ItemsControl x:Name="Items" Focusable="False">
+        <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+                <UniformGrid Rows="1" />
+            </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+            <DataTemplate>
+                <Border BorderBrush="{Binding Ring}" BorderThickness="1" Background="{Binding Fill}" CornerRadius="5"
+                        Padding="12,9" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Number}" FontFamily="{StaticResource MonoFont}" FontSize="11"
+                                   Foreground="{Binding Ring}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Name}" FontSize="12.5" Foreground="{Binding Text}" FontWeight="{Binding Weight}"
+                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Border>
+            </DataTemplate>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
+</UserControl>

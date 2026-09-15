@@ -1,0 +1,28 @@
+<Window x:Class="EQRisk.Desktop.Tray.TrayFlyout"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="EQRisk" Width="348" SizeToContent="Height" WindowStyle="None" ResizeMode="NoResize"
+        ShowInTaskbar="False" Topmost="True" ShowActivated="True"
+        Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+        FontFamily="{StaticResource BodyFont}" Foreground="{StaticResource InkBrush}" UseLayoutRounding="True">
+    <!-- A glance from the notification area: where the model stands, and the one thing to do. -->
+    <StackPanel Margin="20,18,20,18">
+        <StackPanel Orientation="Horizontal">
+            <Image Source="/Assets/eqrisk-mark.png" Width="22" Height="22" RenderOptions.BitmapScalingMode="HighQuality" />
+            <TextBlock Text="EQRisk" FontFamily="{StaticResource DisplayFont}" FontWeight="SemiBold" FontSize="15"
+                       Margin="10,0,0,0" VerticalAlignment="Center" />
+        </StackPanel>
+        <Border Style="{StaticResource Divider}" />
+        <StackPanel Orientation="Horizontal">
+            <Ellipse x:Name="Dot" Width="10" Height="10" Margin="0,0,10,0" VerticalAlignment="Center" />
+            <TextBlock x:Name="Headline" FontFamily="{StaticResource DisplayFont}" FontWeight="SemiBold" FontSize="15"
+                       TextWrapping="Wrap" MaxWidth="280" />
+        </StackPanel>
+        <TextBlock x:Name="Detail" Style="{StaticResource Note}" Margin="20,6,0,16" />
+        <StackPanel Orientation="Horizontal">
+            <Button x:Name="RunButton" Style="{StaticResource PrimaryButton}" Content="Run today's update" Margin="0,0,10,0"
+                    Click="OnRun" />
+            <Button Style="{StaticResource SecondaryButton}" Content="Open EQRisk" Click="OnOpen" />
+        </StackPanel>
+    </StackPanel>
+</Window>

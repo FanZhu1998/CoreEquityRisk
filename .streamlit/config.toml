@@ -1,5 +1,5 @@
-# EQRisk Studio look: the dark navy palette of fan-zhu.com (fanzhu-site/assets/css/style.css).
-# Applies to every Streamlit app started from the project folder (Studio and `eqrisk ui`).
+# The workbench look (`eqrisk ui`): the dark navy palette of fan-zhu.com
+# (fanzhu-site/assets/css/style.css), shared with the desktop app's Theme/Palette.xaml.
 
 [server]
 headless = true

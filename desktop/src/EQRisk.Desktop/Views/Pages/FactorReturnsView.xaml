@@ -1,0 +1,69 @@
+<UserControl x:Class="EQRisk.Desktop.Views.Pages.FactorReturnsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:EQRisk.Desktop.Views.Controls">
+    <StackPanel>
+        <c:PageHeader />
+        <Border Style="{StaticResource Card}" Padding="18,14">
+            <DockPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource FieldLabel}" Text="AS OF" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <DatePicker SelectedDate="{Binding AsOf}" DisplayDateStart="{Binding FirstDate}" DisplayDateEnd="{Binding LastDate}" Width="160" />
+                    <TextBlock Style="{StaticResource FieldLabel}" Text="WINDOW" VerticalAlignment="Center" Margin="24,0,12,0" />
+                    <ComboBox ItemsSource="{Binding YearChoices}" SelectedItem="{Binding Years}" Width="120">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={StaticResource YearsText}}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource GhostButton}" Content="Styles" Command="{Binding ShowCommand}" CommandParameter="style" />
+                    <Button Style="{StaticResource GhostButton}" Content="Industries" Command="{Binding ShowCommand}" CommandParameter="industry" />
+                    <Button Style="{StaticResource GhostButton}" Content="All" Command="{Binding ShowCommand}" CommandParameter="all" />
+                    <Button Style="{StaticResource GhostButton}" Content="None" Command="{Binding ShowCommand}" CommandParameter="none" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Style="{StaticResource H2}" Text="Cumulative factor returns" />
+                <ItemsControl ItemsSource="{Binding Factors}" Margin="0,4,0,10" Focusable="False">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected}" FontSize="12" Margin="0,0,16,6" MinWidth="0" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <c:ChartView Chart="{Binding Cumulative}" Height="440" />
+            </StackPanel>
+        </Border>
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Style="{StaticResource H2}" Text="Returns on the as-of session" />
+                <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Returns}" MaxHeight="520">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="FACTOR" Binding="{Binding Factor}" Width="*" ElementStyle="{StaticResource TextCell}" />
+                        <DataGridTextColumn Header="GROUP" Binding="{Binding Group}" Width="110" ElementStyle="{StaticResource TextCell}" />
+                        <DataGridTemplateColumn Header="RETURN" Width="120">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Return}" Style="{StaticResource NumberCell}"
+                                               Foreground="{Binding Tone, Converter={StaticResource ToneBrush}}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="T-STAT" Binding="{Binding TStat}" Width="100" ElementStyle="{StaticResource NumberCell}" />
+                        <DataGridTextColumn Header="IN σ" Binding="{Binding Sigmas}" Width="100" ElementStyle="{StaticResource NumberCell}" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

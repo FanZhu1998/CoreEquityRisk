@@ -1,0 +1,108 @@
+<UserControl x:Class="EQRisk.Desktop.Views.Pages.PortfolioView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:EQRisk.Desktop.Views.Controls">
+    <StackPanel>
+        <c:PageHeader />
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="420" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Holdings in. -->
+            <Border Style="{StaticResource Card}" VerticalAlignment="Top">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="Holdings" />
+                    <WrapPanel Margin="0,0,0,10">
+                        <Button Style="{StaticResource GhostButton}" Command="{Binding OpenFileCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Glyph}" Text="&#xE838;" FontSize="13" Margin="0,0,7,0" />
+                                <TextBlock Text="Open CSV" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource GhostButton}" Content="Sample" Command="{Binding UseSampleCommand}" />
+                        <Button Style="{StaticResource GhostButton}" Content="Add row" Command="{Binding AddRowCommand}" />
+                        <Button Style="{StaticResource GhostButton}" Content="Clear" Command="{Binding ClearCommand}" />
+                    </WrapPanel>
+                    <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Holdings}" IsReadOnly="False" Height="420"
+                              SelectionUnit="Cell">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="TICKER" Binding="{Binding Ticker}" Width="*" />
+                            <DataGridTextColumn Header="WEIGHT" Binding="{Binding Weight, StringFormat={}{0:0.####}}" Width="100" />
+                            <DataGridTextColumn Header="BENCHMARK" Binding="{Binding BenchWeight, StringFormat={}{0:0.####}, TargetNullValue=''}" Width="110" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock Style="{StaticResource Note}" Text="{Binding Note}" Margin="0,10,0,14" />
+                    <Button Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Command="{Binding AnalyzeCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xEB05;" FontSize="13" Margin="0,0,9,0"
+                                       Foreground="{StaticResource OnAccentBrush}" />
+                            <TextBlock Text="Analyze risk" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Border>
+
+            <!-- Risk out: the headline figures, where the variance comes from, and the names that carry it. -->
+            <StackPanel Grid.Column="2">
+                <TextBlock Style="{StaticResource Note}" Text="Results appear here after Analyze risk."
+                           Visibility="{Binding HasResult, Converter={StaticResource HiddenWhen}}" Margin="0,6,0,0" />
+                <StackPanel Visibility="{Binding HasResult, Converter={StaticResource VisibleWhen}}">
+                    <!-- Three to a row: this column is too narrow for five figures side by side. -->
+                    <ItemsControl ItemsSource="{Binding Stats}" Style="{StaticResource StatRail}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="3" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource H2}" Text="Where the variance comes from" />
+                            <c:ChartView Chart="{Binding GroupChart}" Height="160" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource H2}" Text="Largest contributors" />
+                            <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Assets}" MaxHeight="300">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="TICKER" Binding="{Binding Ticker}" Width="*" MinWidth="70" ElementStyle="{StaticResource TextCell}" />
+                                    <DataGridTextColumn Header="WEIGHT" Binding="{Binding Weight}" Width="85" ElementStyle="{StaticResource NumberCell}" />
+                                    <DataGridTextColumn Header="MCTR" Binding="{Binding Mctr}" Width="80" ElementStyle="{StaticResource NumberCell}" />
+                                    <DataGridTextColumn Header="% RISK" Binding="{Binding Share}" Width="80" ElementStyle="{StaticResource NumberCell}" />
+                                    <DataGridTextColumn Header="BETA" Binding="{Binding Beta}" Width="70" ElementStyle="{StaticResource NumberCell}" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Every factor, across the whole page so the names have room. -->
+            <Border Grid.Row="1" Grid.ColumnSpan="3" Style="{StaticResource Card}"
+                    Visibility="{Binding HasResult, Converter={StaticResource VisibleWhen}}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="Factors: exposure, volatility and x-σ-ρ" />
+                    <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Factors}" MaxHeight="420">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="FACTOR" Binding="{Binding Factor}" Width="*" MinWidth="180" ElementStyle="{StaticResource TextCell}" />
+                            <DataGridTextColumn Header="GROUP" Binding="{Binding Group}" Width="100" ElementStyle="{StaticResource TextCell}" />
+                            <DataGridTextColumn Header="EXPOSURE" Binding="{Binding Exposure}" Width="100" ElementStyle="{StaticResource NumberCell}" />
+                            <DataGridTextColumn Header="VOLATILITY" Binding="{Binding Volatility}" Width="100" ElementStyle="{StaticResource NumberCell}" />
+                            <DataGridTextColumn Header="CORR." Binding="{Binding Correlation}" Width="85" ElementStyle="{StaticResource NumberCell}" />
+                            <DataGridTextColumn Header="X-Σ-Ρ" Binding="{Binding Xsr}" Width="90" ElementStyle="{StaticResource NumberCell}" />
+                            <DataGridTextColumn Header="% VARIANCE" Binding="{Binding Share}" Width="105" ElementStyle="{StaticResource NumberCell}" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </StackPanel>
+</UserControl>

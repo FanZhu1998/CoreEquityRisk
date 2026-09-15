@@ -1,0 +1,79 @@
+<UserControl x:Class="EQRisk.Desktop.Views.Pages.PublishView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:EQRisk.Desktop.Views.Controls">
+    <StackPanel>
+        <c:PageHeader />
+
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Style="{StaticResource H2}" Text="Static viewer" />
+                <TextBlock Style="{StaticResource Note}" Text="{Binding SiteStatus}" Margin="0,0,0,14" />
+                <WrapPanel>
+                    <Button Style="{StaticResource PrimaryButton}" Command="{Binding ExportCommand}" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE898;" FontSize="13" Margin="0,0,9,0"
+                                       Foreground="{StaticResource OnAccentBrush}" />
+                            <TextBlock Text="Export viewer" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource SecondaryButton}" Content="Serve on this computer" Command="{Binding ServeCommand}" Margin="0,0,10,0"
+                            IsEnabled="{Binding SiteExported}" Visibility="{Binding IsServing, Converter={StaticResource HiddenWhen}}" />
+                    <Button Style="{StaticResource SecondaryButton}" Content="Stop serving" Command="{Binding StopServingCommand}" Margin="0,0,10,0"
+                            Visibility="{Binding IsServing, Converter={StaticResource VisibleWhen}}" />
+                    <Button Style="{StaticResource GhostButton}" Content="Open folder" Command="{Binding OpenSiteFolderCommand}"
+                            IsEnabled="{Binding SiteExported}" />
+                </WrapPanel>
+                <TextBlock Style="{StaticResource Mono}" Text="{Binding ServingAt, StringFormat=Serving at {0}}" Margin="0,12,0,0"
+                           Visibility="{Binding ServingAt, Converter={StaticResource VisibleWhen}}" />
+                <TextBlock Style="{StaticResource Note}" Margin="0,12,0,0"
+                           Text="Served on 127.0.0.1 only, so nothing on the network can reach it. To share it privately, copy the folder; avoid public hosting of licensed data (blueprint §15.2)." />
+            </StackPanel>
+        </Border>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Border Style="{StaticResource Card}" VerticalAlignment="Top">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="Snapshot for notebooks and optimizers" />
+                    <TextBlock Style="{StaticResource Note}" Margin="0,0,0,12"
+                               Text="X, F (monthly), specific variances, market caps and the estimation-universe flag, as .npz. Load it with RiskModelSnapshot.load(path)." />
+                    <StackPanel Orientation="Horizontal">
+                        <DatePicker SelectedDate="{Binding SnapshotDate}" Width="160" />
+                        <Button Style="{StaticResource SecondaryButton}" Content="Write snapshot" Margin="12,0,0,0" Command="{Binding WriteSnapshotCommand}" />
+                        <Button Style="{StaticResource GhostButton}" Content="Open folder" Margin="6,0,0,0" Command="{Binding OpenExportsFolderCommand}" />
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding Snapshots}" Margin="0,14,0,0" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding Value}" Style="{StaticResource Note}" />
+                                    <TextBlock Text="{Binding Name}" Style="{StaticResource Mono}" />
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="2" Style="{StaticResource Card}" VerticalAlignment="Top">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H2}" Text="Monthly compaction" />
+                    <TextBlock Style="{StaticResource Note}" Margin="0,0,0,12"
+                               Text="Daily sessions are stored one file per day. After a month ends, merge them into one file per table. Safe to repeat." />
+                    <StackPanel Orientation="Horizontal">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="ANY DAY IN THE MONTH" />
+                            <DatePicker SelectedDate="{Binding CompactMonth}" Width="160" />
+                        </StackPanel>
+                        <Button Style="{StaticResource SecondaryButton}" Content="Compact month" Margin="12,0,0,0" VerticalAlignment="Bottom"
+                                Command="{Binding CompactCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </StackPanel>
+</UserControl>

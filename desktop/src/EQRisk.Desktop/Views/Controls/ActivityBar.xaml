@@ -1,0 +1,52 @@
+<UserControl x:Class="EQRisk.Desktop.Views.Controls.ActivityBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:EQRisk.Desktop.Views.Controls"
+             Visibility="{Binding IsVisible, Converter={StaticResource VisibleWhen}}">
+    <!-- The job that is running, or just ended: steps, time, outcome and the live log. -->
+    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0">
+        <StackPanel Margin="46,14,46,14">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Style="{StaticResource GhostButton}" Command="{Binding ToggleLogCommand}" Margin="0,0,6,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE9F9;" FontSize="13" Margin="0,0,7,0" />
+                            <TextBlock Text="Log" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource DangerButton}" Command="{Binding StopCommand}" Padding="14,6" MinHeight="30"
+                            Visibility="{Binding IsRunning, Converter={StaticResource VisibleWhen}}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE71A;" FontSize="12" Margin="0,0,7,0" />
+                            <TextBlock Text="Stop" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource GhostButton}" Content="Dismiss" Command="{Binding DismissCommand}"
+                            Visibility="{Binding IsRunning, Converter={StaticResource HiddenWhen}}" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Job.Label}" FontFamily="{StaticResource DisplayFont}" FontWeight="SemiBold"
+                               FontSize="14.5" VerticalAlignment="Center" />
+                    <Border Style="{StaticResource Pill}" Margin="12,0,0,0"
+                            Background="{Binding Job.Status, Converter={StaticResource ToneDimBrush}}">
+                        <TextBlock Text="{Binding Job.Status}" FontFamily="{StaticResource MonoFont}" FontSize="10.5"
+                                   Foreground="{Binding Job.Status, Converter={StaticResource ToneBrush}}" />
+                    </Border>
+                    <TextBlock Text="{Binding Elapsed}" Style="{StaticResource Mono}" Margin="12,0,0,0" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Outcome}" Style="{StaticResource Note}" Margin="14,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+            </DockPanel>
+
+            <c:StepStrip Margin="0,12,0,0" Steps="{Binding StepNames}" Current="{Binding Step}" Failed="{Binding Failed}"
+                         Completed="{Binding Job.Status, Converter={StaticResource VisibleWhen}, ConverterParameter=done}"
+                         Visibility="{Binding ShowsSteps, Converter={StaticResource VisibleWhen}}" x:Name="Steps" />
+            <ProgressBar IsIndeterminate="True" Height="2" Margin="0,12,0,0" BorderThickness="0" x:Name="Busy" />
+
+            <TextBox x:Name="Log" Text="{Binding LogTail, Mode=OneWay}" IsReadOnly="True" Height="190" Margin="0,12,0,0"
+                     FontFamily="{StaticResource MonoFont}" FontSize="11.5" TextWrapping="NoWrap"
+                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                     Background="{StaticResource PageBrush}" Foreground="{StaticResource Ink2Brush}"
+                     Visibility="{Binding IsLogOpen, Converter={StaticResource VisibleWhen}}" />
+        </StackPanel>
+    </Border>
+</UserControl>

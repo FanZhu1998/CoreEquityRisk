@@ -1,0 +1,162 @@
+<UserControl x:Class="EQRisk.Desktop.Views.Pages.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:EQRisk.Desktop.Views.Controls">
+    <UserControl.Resources>
+        <Style x:Key="Toggle" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="FontSize" Value="13" />
+            <!-- A long label wraps inside the card instead of running past its edge. -->
+            <Setter Property="ContentTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" TextWrapping="Wrap" />
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    <StackPanel>
+        <c:PageHeader />
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel>
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H2}" Text="Engine folder" />
+                        <TextBlock Style="{StaticResource Note}" Margin="0,0,0,12"
+                                   Text="The CoreEquityRisk folder: its configs, data and Python environment. The app finds it when it runs from inside that folder; otherwise choose it here." />
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" Content="Choose…" Margin="10,0,0,0"
+                                    Command="{Binding BrowseEngineCommand}" />
+                            <TextBox Text="{Binding EngineRoot, Mode=OneWay}" IsReadOnly="True" FontFamily="{StaticResource MonoFont}" FontSize="12" />
+                        </DockPanel>
+                        <DockPanel Margin="0,10,0,0">
+                            <Ellipse DockPanel.Dock="Left" Width="8" Height="8" Margin="0,6,9,0" VerticalAlignment="Top">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="{StaticResource BearBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding EngineOk}" Value="True">
+                                                <Setter Property="Fill" Value="{StaticResource BullBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock Style="{StaticResource Note}" Text="{Binding EngineCheckText}" TextWrapping="Wrap" />
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H2}" Text="Daily schedule" />
+                        <TextBlock Style="{StaticResource Note}" Margin="0,0,0,12"
+                                   Text="Windows Task Scheduler runs the daily update with no window, as you, and catches up after sleep. It uses the same keys and shows in Jobs &amp; runs. The app will not start a job while the scheduled one runs." />
+                        <WrapPanel>
+                            <ComboBox ItemsSource="{Binding ScheduleTimes}" SelectedItem="{Binding ScheduleTime}" Width="100" />
+                            <Button Style="{StaticResource PrimaryButton}" Content="Schedule" Margin="10,0,0,0" Command="{Binding RegisterScheduleCommand}" />
+                            <Button Style="{StaticResource SecondaryButton}" Content="Run now" Margin="10,0,0,0" Command="{Binding RunScheduleNowCommand}"
+                                    IsEnabled="{Binding ScheduleRegistered}" />
+                            <Button Style="{StaticResource DangerButton}" Content="Remove" Margin="10,0,0,0" Command="{Binding RemoveScheduleCommand}"
+                                    IsEnabled="{Binding ScheduleRegistered}" />
+                        </WrapPanel>
+                        <TextBlock Style="{StaticResource Note}" Text="{Binding ScheduleText}" Margin="0,12,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H2}" Text="Behaviour" />
+                        <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding CloseToTray}"
+                                  Content="Closing the window keeps EQRisk in the notification area" />
+                        <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding StartWithWindows}"
+                                  Content="Start with Windows, in the notification area" />
+                        <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding EfficiencyMode}"
+                                  Content="Efficiency mode while the window is hidden (jobs still run at full speed)" />
+                        <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding NotifyOnFinish}"
+                                  Content="Notify when a job finishes" />
+                        <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding CheckForUpdates}"
+                                  Content="Check for updates when the app starts" />
+                        <Button Style="{StaticResource GhostButton}" Content="Add EQRisk to the Start menu" HorizontalAlignment="Left"
+                                Command="{Binding CreateStartMenuShortcutCommand}"
+                                Visibility="{Binding NeedsShortcut, Converter={StaticResource VisibleWhen}}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2">
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H2}" Text="Updates" />
+                        <TextBlock Style="{StaticResource Note}" Margin="0,0,0,12"
+                                   Text="Installed copies update from the repository's GitHub Releases. While the repository is private, a read-only token is needed; it is encrypted like the other keys and used only for updates." />
+                        <WrapPanel>
+                            <Button Style="{StaticResource SecondaryButton}" Content="Check for updates" Command="{Binding CheckUpdatesCommand}"
+                                    IsEnabled="{Binding CanUpdate}" />
+                            <Button Style="{StaticResource GhostButton}" Content="Set token…" Margin="10,0,0,0" Command="{Binding SetUpdateTokenCommand}" />
+                            <Button Style="{StaticResource GhostButton}" Content="Remove token" Command="{Binding RemoveUpdateTokenCommand}"
+                                    Visibility="{Binding HasUpdateToken, Converter={StaticResource VisibleWhen}}" />
+                        </WrapPanel>
+                        <TextBlock Style="{StaticResource Note}" Text="{Binding UpdateText}" Margin="0,12,0,0"
+                                   Visibility="{Binding UpdateText, Converter={StaticResource VisibleWhen}}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H2}" Text="Model" />
+                        <TextBlock Style="{StaticResource Note}" Margin="0,0,0,10"
+                                   Text="Parameters live in configs/model_us_lc.yaml. After changing them, rebuild the model history (Estimate) and run a validation." />
+                        <!-- Rows grow to fit: a value such as a path or a list of sources wraps. -->
+                        <DataGrid Style="{StaticResource Table}" ItemsSource="{Binding Model}" HeadersVisibility="None" RowHeight="NaN">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Binding="{Binding Name}" Width="150" ElementStyle="{StaticResource TextCell}" Foreground="{StaticResource MutedBrush}" />
+                                <DataGridTemplateColumn Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Value}" Margin="10,6" TextWrapping="Wrap" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H2}" Text="About and files" />
+                        <ItemsControl ItemsSource="{Binding Paths}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Margin="0,0,0,8">
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Open" CommandParameter="{Binding Value}"
+                                                Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" Style="{StaticResource Label}" />
+                                            <TextBlock Text="{Binding Value}" FontSize="12.5" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Style="{StaticResource FieldLabel}" Text="DOCUMENTS" Margin="0,8,0,6" />
+                        <WrapPanel>
+                            <Button Style="{StaticResource GhostButton}" Content="Runbook" Command="{Binding OpenDocumentCommand}" CommandParameter="RUNBOOK.md" />
+                            <Button Style="{StaticResource GhostButton}" Content="Decisions" Command="{Binding OpenDocumentCommand}" CommandParameter="DECISIONS.md" />
+                            <Button Style="{StaticResource GhostButton}" Content="Blueprint" Command="{Binding OpenDocumentCommand}" CommandParameter="BLUEPRINT.md" />
+                            <Button Style="{StaticResource GhostButton}" Content="README" Command="{Binding OpenDocumentCommand}" CommandParameter="README.md" />
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </StackPanel>
+</UserControl>

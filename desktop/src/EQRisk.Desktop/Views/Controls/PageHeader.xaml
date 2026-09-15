@@ -1,0 +1,28 @@
+<UserControl x:Class="EQRisk.Desktop.Views.Controls.PageHeader"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- The top of every page: eyebrow, heading with its accent, lede, then a problem or a loading line. -->
+    <StackPanel>
+        <TextBlock Style="{StaticResource Eyebrow}" Text="{Binding Eyebrow, Converter={StaticResource Upper}}" />
+        <TextBlock Style="{StaticResource PageTitle}">
+            <Run Text="{Binding Heading, Mode=OneWay}" />
+            <Run Text="{Binding HeadingAccent, Mode=OneWay}" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" />
+        </TextBlock>
+        <TextBlock Style="{StaticResource Lede}" Text="{Binding Lede}"
+                   Visibility="{Binding Lede, Converter={StaticResource VisibleWhen}}" />
+
+        <Border Background="{StaticResource BearDimBrush}" BorderBrush="{StaticResource BearBrush}" BorderThickness="1"
+                CornerRadius="6" Padding="16,12" Margin="0,0,0,18"
+                Visibility="{Binding Problem, Converter={StaticResource VisibleWhen}}">
+            <DockPanel>
+                <TextBlock Style="{StaticResource Glyph}" Text="&#xE7BA;" Foreground="{StaticResource BearBrush}" Margin="0,0,12,0" />
+                <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Try again"
+                        Command="{Binding ReloadCommand}" Margin="12,0,0,0" />
+                <TextBlock Text="{Binding Problem}" Style="{StaticResource Body}" VerticalAlignment="Center" />
+            </DockPanel>
+        </Border>
+
+        <ProgressBar IsIndeterminate="True" Height="2" Margin="0,0,0,14" BorderThickness="0"
+                     Visibility="{Binding IsLoading, Converter={StaticResource VisibleWhen}}" />
+    </StackPanel>
+</UserControl>

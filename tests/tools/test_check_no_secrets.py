@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -27,7 +28,8 @@ def test_forbidden_paths_are_blocked(path: str) -> None:
 
 @pytest.mark.parametrize("path", [
     ".env.example", "eqrisk/config.py", "configs/model.yaml", "docs/BLUEPRINT.md",
-    "app/studio.py", "tests/fixtures/fja_sp500.csv", "EQRisk Studio.bat",
+    "app/main.py", "tests/fixtures/fja_sp500.csv", "desktop/src/EQRisk.Desktop/App.xaml.cs",
+    "desktop/scripts/pack.ps1",
 ])
 def test_normal_paths_are_allowed(path: str) -> None:
     assert guard.check_paths([path]) == []
@@ -85,6 +87,31 @@ def test_env_values_are_read_but_short_ones_ignored(tmp_path: Path, monkeypatch:
     assert found["EODHD_API_KEY"] == "longenoughvalue123"
     assert "SHORT" not in found                                  # too short to search for safely
     assert found["SEC_USER_AGENT (contact address)"] == "someone@example.com"
+
+
+def test_scan_finds_a_key_in_build_output_in_any_form_and_inside_packages(tmp_path: Path) -> None:
+    """--scan, which pack.ps1 runs on the publish folder and the installer before anything ships."""
+    key = SECRETS["EODHD_API_KEY"]
+    (tmp_path / "EQRisk.dll").write_bytes(b"MZ\x90\x00 no key in here")
+    (tmp_path / "appsettings.json").write_text(f'{{"token": "{key}"}}', encoding="utf-8")
+    (tmp_path / "Strings.resources").write_bytes(key.encode("utf-16-le"))       # how .NET stores strings
+    with zipfile.ZipFile(tmp_path / "EQRiskDesktop-0.2.0-full.nupkg", "w") as package:
+        package.writestr("lib/app/config.ini", f"key={key}")
+    problems, scanned = guard.scan_files([str(tmp_path)], SECRETS)
+    assert scanned == 4
+    for leaked in ("appsettings.json", "Strings.resources", "config.ini"):
+        assert any(leaked in p for p in problems), leaked
+    assert not any("EQRisk.dll" in p for p in problems)
+    for line in problems:
+        assert key not in line, line                                            # never echoed
+
+
+def test_scan_of_clean_build_output_passes(tmp_path: Path) -> None:
+    (tmp_path / "bin").mkdir()
+    (tmp_path / "bin" / "EQRisk.exe").write_bytes(b"MZ clean")
+    with zipfile.ZipFile(tmp_path / "EQRiskDesktop-win-Portable.zip", "w") as package:
+        package.writestr("EQRisk.exe", b"MZ clean")
+    assert guard.scan_files([str(tmp_path)], SECRETS) == ([], 2)
 
 
 def test_pattern_exemption_only_skips_patterns() -> None:

@@ -1,22 +1,23 @@
 """Page 8: Riskfolio (injected covariance) and native factor-form optimization (§12) against the
-cap-weighted estimation universe, with exposure bands, a tracking-error cap and a turnover limit."""
+cap-weighted estimation universe, with exposure bands, a tracking-error cap and a turnover limit.
+The solving lives in eqrisk.optimize.service, which the desktop app calls too."""
 
 import numpy as np
-import pandas as pd
 import polars as pl
 import streamlit as st
 from common import ANN, pick_date, snapshot
 
-from eqrisk.analytics.risk import market_portfolio, portfolio_risk
+from eqrisk.optimize.service import OptimizeSpec, optimize_portfolio
 
 st.title("Optimizer")
 d = pick_date()
 snap = snapshot(d)
-w_b = market_portfolio(snap)
-styles, inds = list(snap.groups["style"]), list(snap.groups["industry"])
+styles = list(snap.groups["style"])
 c1, c2, c3 = st.columns(3)
 method = c1.radio("Method", ["Factor form (cvxpy)", "Riskfolio-Lib"])
 tilt = c1.selectbox("Alpha", ["none (minimum active risk)", *[snap.factors[k] for k in styles]])
+alpha_pct = c1.number_input("Alpha per unit of exposure, % a month", 0.0, 5.0, 1.0, 0.25,
+                            disabled=tilt.startswith("none"))
 te = c2.slider("Tracking-error cap, annualized %", 0.5, 10.0, 3.0, 0.5)
 style_band = c2.slider("Style exposure band ±", 0.0, 0.5, 0.10, 0.05)
 ind_band = c2.slider("Industry exposure band ±", 0.0, 0.10, 0.02, 0.01)
@@ -26,36 +27,18 @@ st.caption("Benchmark: the estimation universe, cap-weighted. Riskfolio minimize
            "its tracking error is historical, so the TE cap applies to the factor form only (§12.3).")
 
 if st.button("Optimize"):
-    alpha = None if tilt.startswith("none") else snap.X[:, snap.factors.index(tilt)] * 0.01
+    spec = OptimizeSpec(method="factor" if method.startswith("Factor") else "riskfolio", te_max_ann=te / 100,
+                        style_band=style_band, ind_band=ind_band, w_max=w_max, turnover_max=turnover,
+                        alpha_factor=None if tilt.startswith("none") else tilt, alpha_per_unit=alpha_pct / 100)
     with st.spinner("solving"):
-        if method.startswith("Factor"):
-            from eqrisk.optimize.factor_form import optimize_active
-
-            # optimize_active is blueprint Appendix A.3 verbatim, so it carries no annotations.
-            w, status = optimize_active(snap.X, snap.F, snap.spec_var, w_b,  # type: ignore[no-untyped-call]
-                                        alpha=alpha, te_max_ann=te / 100,
-                                        style_idx=styles, style_bound=style_band, ind_idx=inds, ind_bound=ind_band,
-                                        w_max=w_max, w_prev=w_b, turnover_max=turnover)
-        else:
-            from eqrisk.optimize.riskfolio_adapter import exposure_bounds, to_riskfolio
-
-            ids = [str(s) for s in snap.sids]
-            X = pd.DataFrame(snap.X, index=ids, columns=snap.factors)
-            port = to_riskfolio(X, pd.DataFrame(snap.F, index=snap.factors, columns=snap.factors),
-                                pd.Series(snap.spec_var, index=ids))
-            bounds = {snap.factors[k]: (-style_band, style_band) for k in styles}
-            port.ainequality, port.binequality = exposure_bounds(X, bounds, pd.Series(w_b, index=ids))
-            port.upperlng = w_max
-            res = port.optimization(model="Classic", rm="MV", obj="MinRisk", rf=0, l=0, hist=True)
-            w, status = (None, "infeasible") if res is None else (res["weights"].reindex(ids).to_numpy(), "optimal")
-    if w is None:
-        st.error(f"No solution: {status}")
+        res = optimize_portfolio(snap, spec)
+    if res.weights is None or res.report is None:
+        st.error(f"No solution: {res.status}")
     else:
-        w = np.clip(np.asarray(w, dtype=float), 0.0, None)
-        rep = portfolio_risk(snap, w, w_b)
+        w, w_b, rep = res.weights, res.benchmark, res.report
         st.session_state["optimizer_report"] = rep
         c = st.columns(4)
-        c[0].metric("Status", status)
+        c[0].metric("Status", res.status)
         c[1].metric("Active risk (ann.)", f"{rep.sigma_ann:.2%}")
         c[2].metric("Names held", int((w > 1e-6).sum()))
         c[3].metric("Turnover vs benchmark", f"{np.abs(w - w_b).sum():.2f}")

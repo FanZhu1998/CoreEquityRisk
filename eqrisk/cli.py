@@ -89,16 +89,30 @@ def init(root: RootOpt = Path("."), config: ConfigOpt = DEFAULT_CONFIG) -> None:
 
 
 @app.command()
-def doctor(root: RootOpt = Path("."), config: ConfigOpt = DEFAULT_CONFIG) -> None:
+def doctor(root: RootOpt = Path("."), config: ConfigOpt = DEFAULT_CONFIG,
+           as_json: Annotated[bool, typer.Option("--json", help="Print the checks as one JSON array.")] = False,
+           ) -> None:
     """Connectivity, entitlements, dataset ranges and a cost estimate before any backfill."""
     from eqrisk.pipeline.doctor import run_doctor
 
     project = _project(root, config)
     rows = run_doctor(project)
-    for r in rows:
-        typer.echo(f"{r['status']:<8} {r['check']:<28} {r['detail']}")
+    if as_json:
+        typer.echo(json.dumps(rows))
+    else:
+        for r in rows:
+            typer.echo(f"{r['status']:<8} {r['check']:<28} {r['detail']}")
     if any(r["status"] == "fail" for r in rows):
         raise typer.Exit(code=1)
+
+
+@app.command()
+def serve(root: RootOpt = Path("."), config: ConfigOpt = DEFAULT_CONFIG) -> None:
+    """Answer the desktop app's read requests: JSON lines on stdin and stdout (docs: pipeline/feed.py).
+    Read only and key-free; jobs that change data run as separate commands."""
+    from eqrisk.pipeline.feed import serve as serve_feed
+
+    serve_feed(_project(root, config))
 
 
 @app.command()

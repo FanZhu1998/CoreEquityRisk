@@ -557,3 +557,71 @@ the five variables by name, with no values.
 travel as query parameters that `eqrisk/sources/base.py::safe_url` strips from every exception and
 log line (`tests/sources/test_http_base.py`). The Studio reports each key as configured or missing
 and never reads its value. `httpx` loggers are pinned to WARNING so no request URL is logged.
+
+## D-025 · A native Windows app replaces EQRisk Studio (2026-09-14)
+
+**Context.** EQRisk Studio was a Streamlit page started by `EQRisk Studio.bat`: a console window, a
+browser window without toolbars, a port to keep free, and nothing left running once the window
+closed. The target is a native Windows app — one `EQRisk.exe`, an installer, a notification-area
+icon — on a named stack: C# on .NET 10 (SDK 10.0.401), WPF with XAML and CommunityToolkit.Mvvm,
+H.NotifyIcon.Wpf with an icon drawn by SkiaSharp, direct Windows API calls, Microsoft.Extensions.Hosting
+with Serilog, Polly, SQLite, JSON settings, DPAPI, Tomlyn, System.Management, Velopack and xUnit.
+
+**Decision.** The Python engine stays the only code that computes or writes the model. The desktop
+app (`desktop/`, solution `EQRisk.slnx`) is a shell around it.
+
+- **One engine, two channels.** Reads go to one long-lived `eqrisk serve` process
+  (`eqrisk/pipeline/feed.py`): JSON lines over stdin and stdout, one request and one response per
+  line, protocol version 1, NaN refused on the wire. It is read-only, holds no keys, and pays the
+  3–6 s Python start once; a warm read takes milliseconds. Work — downloads, estimation, validation,
+  exports — runs as the same `python -m eqrisk.cli …` commands the terminal and the schedule use.
+  Each job is a child process inside a Windows Job Object that dies with the app, is logged to a
+  file and recorded in SQLite. The six daily-update steps come from markers in the engine's own
+  log lines; `tests/pipeline/test_desktop_contract.py` keeps both sides of that, and of the key
+  list, in step.
+- **Optimizer shared, not ported.** `eqrisk/optimize/service.py` holds the optimizer request and
+  result that the workbench page and the `optimize` read both call.
+- **Layers, enforced.** `EQRisk.Core` (records matching the engine's JSON, job specs, the key
+  catalogue, settings) and `EQRisk.Presentation` (view models and chart models) target plain
+  `net10.0`, so they cannot reference WPF or Windows. `EQRisk.Infrastructure` (engine process, job
+  runner, SQLite, DPAPI vault, Task Scheduler, WMI) references Core only. `EQRisk.Desktop` (XAML,
+  tray, native calls, hosting) composes them in `Hosting/Composition.cs`. An assembly-reference test
+  fails the build otherwise, the C# twin of `tests/test_architecture.py`. A second test resolves
+  every registered service on a WPF thread against a deadline: a dependency cycle through a factory
+  registration gets past the container's checks and hangs the start with no window and no error,
+  which happened once between the tray icon and the job activity.
+- **Keys.** `.env` keeps working. A key set in the app is encrypted with DPAPI for the Windows user
+  (plus app-specific entropy) in `%LOCALAPPDATA%\EQRisk\vault.json`, outside the repository, and
+  handed as an environment variable only to jobs that download. Environment variables take
+  precedence over `.env` in pydantic-settings, so the vault wins when both are set. The read server
+  gets no keys, and every inherited key variable is scrubbed from its environment. The app shows
+  where a key is set, never its value; the update token for a private repository sits in the same
+  vault and reaches only the updater.
+- **Stack rows that map onto this app rather than literally.** *HttpClient + Polly*: the app calls
+  no web API itself (vendor HTTP stays in the engine, behind `metadata.get_cost` and the cost cap);
+  Polly retries the engine server's start twice and a failed read once. *SQLite*: the job history.
+  *Tomlyn*: reads `pyproject.toml` to recognise an engine folder. *WMI*: finds eqrisk jobs started
+  outside the app (a terminal, the schedule), so two never run at once. *Own C# maths*: none; every
+  figure comes from the tested Python engine, and a port would be a second implementation to keep
+  in step. *Velopack*: Setup.exe, a portable zip and updates from GitHub Releases, built by
+  `desktop/scripts/pack.ps1`; this change publishes no release.
+- **Look.** WPF's Fluent dark theme is merged by pack URI (`Themes/Fluent.Dark.xaml`) instead of the
+  experimental `Application.ThemeMode`, with the accent set to the site's steel blue and the
+  palette and fonts of the viewer; DWM paints the title bar in the page colour. ScottPlot.WPF 5.1.59
+  draws the charts. It needs SkiaSharp.Views.WPF 3.119, whose only builds target .NET Framework, so
+  NU1701 is suppressed on that one package reference.
+- **Retired.** `EQRisk Studio.bat` and the Streamlit Studio (`app/studio.py`, `app/studio_lib/`,
+  `app/studio_pages/`, `tests/ui/test_studio.py`). The eight-page workbench (`eqrisk ui`, §15.1) and
+  the static viewer (§15.2) stay.
+
+**Verified (2026-09-14).** The C# solution builds with warnings as errors and passes 124 tests
+(Core 32; Infrastructure 48, one opt-in test that registers a real scheduled task skipped;
+Presentation 26; Desktop 18), among them every read and a restart against the real engine and the
+resolution of the whole service graph. The Python suite passes (465 tests, golden included) with
+ruff and mypy clean. Every page was opened in the running app, at 125% and at 150% display scaling,
+against the development data; the portfolio analyzer and the factor-form optimizer ran end to end
+(12.55% total risk for the sample holdings; 0.83% active risk, 424 names). Killing the app leaves no
+engine process behind. `desktop/scripts/pack.ps1` produced Setup.exe (19.3 MB) and the portable zip
+(15 MB), and the packaged build starts and reads the engine. Not exercised by hand: the tray menu
+and flyout, and `--run-daily` against the vendors (its exit codes are unit-tested; running it would
+download data).

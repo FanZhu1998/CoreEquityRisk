@@ -245,3 +245,16 @@ exports/
 *.duckdb
 *.duckdb.wal
 *.parquet
+
+# --- EQRisk desktop app (desktop/, C# / .NET) ---
+desktop/**/bin/
+desktop/**/obj/
+desktop/artifacts/
+desktop/.vs/
+desktop/**/TestResults/
+*.user
+*.suo
+*.nupkg
+
+# The WPF app manifest is source (the Python template above ignores *.manifest for PyInstaller).
+!desktop/src/EQRisk.Desktop/app.manifest
