@@ -13,6 +13,12 @@ the static viewer, notebooks and the optimizers all consume.
 The design is `docs/BLUEPRINT.md`. Every deviation or gap-filling choice is logged in
 `docs/DECISIONS.md`, and day-to-day operation is in `docs/RUNBOOK.md`.
 
+![EQRisk for Windows, Today page](docs/images/eqrisk-today.png)
+
+*EQRisk for Windows, Today page: the last session at a glance, the style factor moves in units of
+their own volatility, and the quality gates of the daily run ([more on the app](#the-app)). The
+numbers are synthetic, made up for this picture; no vendor data is shown.*
+
 ## Quick start
 
 Requires Python 3.12 and [uv](https://docs.astral.sh/uv/).
