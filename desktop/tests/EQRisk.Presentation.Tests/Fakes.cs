@@ -21,6 +21,15 @@ internal sealed class FakeFeed : IEngineFeed
 
     public IReadOnlyList<KeyPresence> Keys { get; set; } = [];
 
+    public ModelDates? Dates { get; set; }
+
+    public SpecificInfo? Specific { get; set; }
+
+    public SecurityExposuresInfo? SecurityExposures { get; set; }
+
+    /// <summary>What the page last asked to compare, so a test can assert the cap and the order.</summary>
+    public IReadOnlyList<string> LastCompared { get; private set; } = [];
+
     public Exception? Failure { get; set; }
 
     public int Refreshes { get; private set; }
@@ -29,7 +38,7 @@ internal sealed class FakeFeed : IEngineFeed
 
     public Task<IReadOnlyList<KeyPresence>> KeysAsync(CancellationToken ct = default) => Answer(Keys);
 
-    public Task<ModelDates> DatesAsync(CancellationToken ct = default) => throw new NotSupportedException();
+    public Task<ModelDates> DatesAsync(CancellationToken ct = default) => Answer(Dates);
 
     public Task<DayInfo> DayAsync(DateOnly? session = null, CancellationToken ct = default) => Answer(Day);
 
@@ -41,8 +50,14 @@ internal sealed class FakeFeed : IEngineFeed
     public Task<ExposuresInfo> ExposuresAsync(DateOnly? asOf = null, CancellationToken ct = default) =>
         throw new NotSupportedException();
 
-    public Task<SpecificInfo> SpecificAsync(DateOnly? asOf = null, CancellationToken ct = default) =>
-        throw new NotSupportedException();
+    public Task<SpecificInfo> SpecificAsync(DateOnly? asOf = null, CancellationToken ct = default) => Answer(Specific);
+
+    public Task<SecurityExposuresInfo> SecurityExposuresAsync(IReadOnlyList<string> tickers, DateOnly? asOf = null,
+        CancellationToken ct = default)
+    {
+        LastCompared = tickers;
+        return Answer(SecurityExposures);
+    }
 
     public Task<ValidationReport?> ValidationAsync(CancellationToken ct = default) => Task.FromResult<ValidationReport?>(null);
 
@@ -224,6 +239,26 @@ internal static class Sample
 
     public static HistoryInfo History() => new(Last, 1, [Last], new Dictionary<string, IReadOnlyList<double?>>(), [Last],
         new Dictionary<string, IReadOnlyList<double?>>(), [Last], [1.1], [1.08], [0.01], [Last], [0.28]);
+
+    public static ModelDates Dates() => new([Last], Last);
+
+    public static SpecificInfo Specific() => new(Last,
+    [
+        new SpecificRow(1, "AAPL", "TECH_HARDWARE", true, 0.21, 0.22, 0.21, 0.21, 1.0),
+        new SpecificRow(2, "MSFT", "SOFTWARE_SERVICES", true, 0.20, 0.21, 0.20, 0.21, 1.0),
+        new SpecificRow(3, "JPM", "BANKS", true, 0.14, 0.15, 0.14, 0.15, 1.0),
+    ]);
+
+    /// <summary>Two names over a country factor, two industries (one all-zero) and one style.</summary>
+    public static SecurityExposuresInfo SecurityExposures(params string[] tickers) => new(Last, 5,
+    [
+        new SecurityFactorRow("COUNTRY", "country", [.. tickers.Select(_ => (double?)1.0)]),
+        new SecurityFactorRow("TECH_HARDWARE", "industry", [.. tickers.Select(t => (double?)(t == "AAPL" ? 1.0 : 0.0))]),
+        new SecurityFactorRow("UTILITIES", "industry", [.. tickers.Select(_ => (double?)0.0)]),
+        new SecurityFactorRow("SIZE", "style", [.. tickers.Select((_, i) => (double?)(1.9 - i))]),
+    ],
+    [.. tickers.Select((t, i) => new SecuritySummary(i + 1, t, "TECH_HARDWARE", true, 3e12, 0.21, 0.21, 0.30))],
+    []);
 
     public static Inventory Inventory(DateOnly eodLast) =>
         new(new DateOnly(2016, 1, 4), eodLast, 2691, 1156, [], Last, new Dictionary<string, System.Text.Json.JsonElement>(), "C:\\data", 600_000_000);

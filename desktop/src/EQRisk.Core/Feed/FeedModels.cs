@@ -89,6 +89,20 @@ public sealed record SpecificRow(
 
 public sealed record SpecificInfo(DateOnly AsOf, IReadOnlyList<SpecificRow> Rows);
 
+/// <summary>One factor's exposure across the compared securities, in the engine's factor order.</summary>
+public sealed record SecurityFactorRow(string Factor, string Group, IReadOnlyList<double?> Values);
+
+/// <summary>A compared security: the column header, and the risk the model gives that name.</summary>
+public sealed record SecuritySummary(
+    long Sid, string Ticker, string? Industry, bool? InEstu, double? Mcap,
+    double? FactorRisk, double? SpecificRisk, double? TotalRisk);
+
+/// <summary>Full factor exposures for up to <c>Max</c> names on one date: factors are rows, securities
+/// are columns. Symbols the model does not carry on that date come back in <c>Unmatched</c>.</summary>
+public sealed record SecurityExposuresInfo(
+    DateOnly AsOf, int Max, IReadOnlyList<SecurityFactorRow> Factors,
+    IReadOnlyList<SecuritySummary> Securities, IReadOnlyList<string> Unmatched);
+
 /// <summary>One line of the section 1.3 scorecard or the external checks.</summary>
 public sealed record ScoreRow(string Area, string Criterion, string Value, string Status);
 

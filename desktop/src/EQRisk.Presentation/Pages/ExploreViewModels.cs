@@ -375,6 +375,7 @@ public sealed partial class SpecificRiskViewModel : DatedPageViewModel
 {
     private static readonly double[] Edges = [0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50];
     private IReadOnlyList<SpecificLine> all = [];
+    private DateOnly shown;
 
     public SpecificRiskViewModel(IEngineFeed feed, IMessenger messenger)
         : base(feed, messenger)
@@ -382,7 +383,11 @@ public sealed partial class SpecificRiskViewModel : DatedPageViewModel
         Rows = [];
         Search = "";
         Summary = "";
+        Compare = new SecurityCompareViewModel(feed);
     }
+
+    /// <summary>The factor-exposure panel a row opens. Owned here, but it knows nothing about this page.</summary>
+    public SecurityCompareViewModel Compare { get; }
 
     public override string Key => "specific-risk";
 
@@ -413,6 +418,7 @@ public sealed partial class SpecificRiskViewModel : DatedPageViewModel
     protected override async Task LoadAsync(CancellationToken ct)
     {
         var d = await ResolveDateAsync(ct);
+        shown = d;
         var info = await Feed.SpecificAsync(d, ct);
         all = info.Rows.Select(r => new SpecificLine(r.Ticker ?? "", r.Industry is { } i ? Fmt.Factor(i) : "",
             r.InEstu ?? false, r.SigmaTs, r.SigmaStr, r.SigmaBlend, r.SigmaFinal, r.Gamma)).ToList();
@@ -422,7 +428,21 @@ public sealed partial class SpecificRiskViewModel : DatedPageViewModel
             : $"Estimation universe median {Fmt.Pct(finals[finals.Count / 2])}, " +
               $"interquartile {Fmt.Pct(finals[finals.Count / 4])} to {Fmt.Pct(finals[finals.Count * 3 / 4])}";
         Distribution = Histogram(all.Where(r => r.Final is not null).Select(r => r.Final!.Value).ToList());
+        if (Compare.IsOpen)
+        {
+            await Compare.ReloadAsync(d, ct);          // follow the as-of date the page just settled on
+        }
     }
+
+    /// <summary>Activating a row adds it to the comparison, up to the engine's cap.</summary>
+    [RelayCommand]
+    private async Task ShowSecurityAsync(string? ticker) => await Compare.AddAsync(ticker, shown);
+
+    [RelayCommand]
+    private Task HideSecurityAsync(string? ticker) => Compare.RemoveAsync(ticker, shown);
+
+    [RelayCommand]
+    private void CloseCompare() => Compare.Close();
 
     partial void OnSearchChanged(string value) => ApplySearch();
 

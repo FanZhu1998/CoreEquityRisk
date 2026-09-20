@@ -42,6 +42,11 @@ public interface IEngineFeed
 
     Task<SpecificInfo> SpecificAsync(DateOnly? asOf = null, CancellationToken ct = default);
 
+    /// <summary>Full factor exposures for a handful of names at once, for the comparison grid.
+    /// The engine caps the list; ask it for the cap through <see cref="SecurityExposuresInfo.Max"/>.</summary>
+    Task<SecurityExposuresInfo> SecurityExposuresAsync(IReadOnlyList<string> tickers, DateOnly? asOf = null,
+        CancellationToken ct = default);
+
     Task<ValidationReport?> ValidationAsync(CancellationToken ct = default);
 
     Task<Inventory> InventoryAsync(CancellationToken ct = default);
@@ -98,6 +103,15 @@ public sealed class EngineFeed(IEngineConnection connection) : IEngineFeed
 
     public Task<SpecificInfo> SpecificAsync(DateOnly? asOf = null, CancellationToken ct = default) =>
         Call<SpecificInfo>("specific", Dated(asOf), ct);
+
+    public Task<SecurityExposuresInfo> SecurityExposuresAsync(IReadOnlyList<string> tickers, DateOnly? asOf = null,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(tickers);
+        var p = Dated(asOf) ?? [];
+        p["tickers"] = tickers;
+        return Call<SecurityExposuresInfo>("security_exposures", p, ct);
+    }
 
     public async Task<ValidationReport?> ValidationAsync(CancellationToken ct = default)
     {
