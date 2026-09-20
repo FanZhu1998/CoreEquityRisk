@@ -1,6 +1,7 @@
 using System.Data;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using EQRisk.Presentation.Pages;
 
 namespace EQRisk.Desktop.Views.Pages;
@@ -83,6 +84,32 @@ public partial class ExposuresView : UserControl
 public partial class SpecificRiskView : UserControl
 {
     public SpecificRiskView() => InitializeComponent();
+
+    // A DataGrid cannot bind a double-click, so the activated row is forwarded to the view model.
+    private void OnRowActivated(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is SpecificRiskViewModel vm && sender is DataGrid { CurrentItem: SpecificLine line })
+        {
+            vm.ShowSecurityCommand.Execute(line.Ticker);
+        }
+    }
+
+    // The compared securities become columns at run time; give them the table's number format.
+    private void OnCompareColumn(object sender, DataGridAutoGeneratingColumnEventArgs e)
+    {
+        e.Column.Header = e.PropertyName.ToUpperInvariant();
+        if (e.Column is DataGridTextColumn number && e.PropertyType == typeof(double))
+        {
+            number.Binding.StringFormat = "+0.000;-0.000;0.000";
+            number.ElementStyle = (Style)FindResource("NumberCell");
+            number.Width = new DataGridLength(110);
+        }
+        else if (e.Column is DataGridTextColumn label)
+        {
+            label.ElementStyle = (Style)FindResource("TextCell");
+            label.Width = e.PropertyName == "Group" ? new DataGridLength(90) : new DataGridLength(210);
+        }
+    }
 }
 
 public partial class PortfolioView : UserControl

@@ -18,7 +18,7 @@ import polars as pl
 import pytest
 
 from eqrisk.pipeline import feed as feedmod
-from eqrisk.pipeline.feed import Feed, _holdings_frame, clean, serve
+from eqrisk.pipeline.feed import Feed, _compare_tickers, _holdings_frame, clean, serve
 
 ROOT = Path(__file__).resolve().parents[2]
 MODEL = ROOT / "data" / "model"
@@ -44,6 +44,16 @@ def test_holdings_are_validated_and_normalized() -> None:
     for bad in (None, [], [{"ticker": "AAPL"}], ["AAPL"]):
         with pytest.raises(ValueError):
             _holdings_frame(bad)
+
+
+def test_compare_tickers_are_validated_capped_and_deduplicated() -> None:
+    assert _compare_tickers({"tickers": [" aapl ", "MSFT", "aapl"]}) == ["AAPL", "MSFT"]
+    assert _compare_tickers({}) == [] and _compare_tickers({"tickers": []}) == []
+    with pytest.raises(ValueError, match="at most 5"):
+        _compare_tickers({"tickers": ["A", "B", "C", "D", "E", "F"]})
+    with pytest.raises(ValueError, match="list of symbols"):
+        _compare_tickers({"tickers": "AAPL"})
+
 
 
 # ---- the protocol loop, with a fake feed ---------------------------------------------------------
@@ -162,6 +172,24 @@ def test_portfolio_and_optimize_on_the_real_model(live_feed: Feed) -> None:
     assert opt["ok"], opt
     assert opt["names_held"] > 20 and abs(sum(h["weight"] for h in opt["holdings"]) - 1) < 1e-3
     assert opt["sigma_ann"] <= 0.03 + 1e-3              # active risk respects the tracking-error cap
+
+
+@pytest.mark.golden
+def test_security_exposures_on_the_real_model(live_feed: Feed) -> None:
+    res = live_feed.call("security_exposures", {"tickers": ["AAPL", "MSFT", "NOT_A_TICKER"]})
+    assert res["unmatched"] == ["NOT_A_TICKER"] and [s["ticker"] for s in res["securities"]] == ["AAPL", "MSFT"]
+    factors = res["factors"]
+    assert len(factors) >= 30 and {f["group"] for f in factors} == {"country", "industry", "style"}
+    assert all(len(f["values"]) == 2 for f in factors)
+    country = [f for f in factors if f["group"] == "country"]
+    assert len(country) == 1 and country[0]["values"] == [1.0, 1.0]
+    for col in range(2):                                  # a name sits in exactly one industry
+        assert sum(1 for f in factors if f["group"] == "industry" and f["values"][col] == 1.0) == 1
+    for s in res["securities"]:                           # total^2 = factor^2 + specific^2, annualized
+        assert abs(s["total_risk"] ** 2 - s["factor_risk"] ** 2 - s["specific_risk"] ** 2) < 1e-9
+        assert 0 < s["total_risk"] < 2 and s["industry"]
+    empty = live_feed.call("security_exposures", {})       # bare params answer, so the key sweep can call it
+    assert empty["securities"] == [] and empty["factors"] == [] and empty["max"] == 5
 
 
 @pytest.mark.golden

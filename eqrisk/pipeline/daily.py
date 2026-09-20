@@ -97,11 +97,11 @@ def wait_for_vendor(project: Project, d: date) -> bool:
 
 def pending_sessions(project: Project, through: date, force: bool) -> list[date]:
     cal = get_calendar(project.config.calendar)
-    if force:
-        return [through]
     done = [d for d in processed_dates(project) if d <= through]
     if not done:
         raise LookupError("no processed sessions yet; run `eqrisk backfill` first (§13.4)")
+    if force:
+        return [through]
     last = max(done)
     return cal.sessions(cal.next_session(last), through) if last < through else []
 

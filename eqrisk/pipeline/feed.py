@@ -61,6 +61,7 @@ EXCEPTION_ROWS = 5000                    # rows `exceptions` returns; its counts
 SNAPSHOTS_KEPT = 6                       # as-of dates whose snapshot stays in memory
 _ZERO = 1e-12                            # an exposure below this is numerically zero
 _HELD = 1e-6                             # an optimized weight below this is not a holding
+COMPARE_MAX = 5                          # securities `security_exposures` answers for at once
 
 # Reference datasets shown on the desktop's Data page: (label, source, dataset).
 REFERENCE = [("S&P 500 membership", "fja05680", "components"), ("Risk-free rate", "fred", "DTB3"),
@@ -175,6 +176,21 @@ def _report_payload(rep: RiskReport) -> dict[str, Any]:
             "groups": rep.groups.select("group", "pct_var"), "factors": factors, "assets": assets}
 
 
+def _compare_tickers(params: Params) -> list[str]:
+    """`tickers`: up to COMPARE_MAX symbols, upper-cased, order kept, duplicates dropped."""
+    raw = params.get("tickers") or []
+    if not isinstance(raw, list):
+        raise ValueError("tickers must be a list of symbols")
+    out: list[str] = []
+    for item in raw:
+        symbol = str(item).strip().upper()
+        if symbol and symbol not in out:
+            out.append(symbol)
+    if len(out) > COMPARE_MAX:
+        raise ValueError(f"at most {COMPARE_MAX} securities can be compared at once, not {len(out)}")
+    return out
+
+
 def _num(params: Params, key: str) -> float:
     if params.get(key) is None:
         raise ValueError(f"missing number {key!r}")
@@ -199,7 +215,8 @@ class Feed:
         self.methods: dict[str, Callable[[Params], Any]] = {
             "hello": self.hello, "refresh": self.refresh, "status": self.status, "keys": self.keys,
             "dates": self.dates, "day": self.day, "history": self.history, "factor_risk": self.factor_risk,
-            "exposures": self.exposures, "specific": self.specific, "validation": self.validation,
+            "exposures": self.exposures, "security_exposures": self.security_exposures,
+            "specific": self.specific, "validation": self.validation,
             "inventory": self.inventory, "exceptions": self.exceptions, "runs": self.runs,
             "config": self.config, "outputs": self.outputs, "portfolio": self.portfolio, "optimize": self.optimize,
         }
@@ -359,6 +376,47 @@ class Feed:
             return {"as_of": d, "styles": styles, "rows": ex.select(cols).sort("ticker", nulls_last=True)}
 
         return self._cached(f"exposures:{d}", build)
+
+    def security_exposures(self, params: Params) -> dict[str, Any]:
+        """Every factor's exposure for up to five names on one date: country, industry and styles.
+
+        Factors are rows and securities are columns, the shape the desktop's comparison grid draws.
+        The country intercept and the industry dummies are not stored per name; they come from the
+        snapshot's X, so no caller has to know how the exposure matrix is encoded. An unknown symbol
+        comes back in `unmatched` rather than failing the whole call.
+        """
+        d = self._as_of(params)
+        names = _compare_tickers(params)
+        if not names:
+            return {"as_of": d, "max": COMPARE_MAX, "factors": [], "securities": [], "unmatched": []}
+
+        def build() -> dict[str, Any]:
+            snap = self._snapshot(d)
+            found = [(t, int(i)) for t, i in zip(names, snap.positions(names).tolist(), strict=True) if i >= 0]
+            unmatched = [t for t, i in zip(names, snap.positions(names).tolist(), strict=True) if i < 0]
+            industries = np.asarray(snap.factors, dtype=object)[snap.groups["industry"]]
+            securities: list[dict[str, Any]] = []
+            if found:
+                rows = np.array([i for _, i in found], dtype=int)
+                X = snap.X[rows]
+                factor_var = np.einsum("ik,kl,il->i", X, snap.F, X)
+                spec_var = snap.spec_var[rows]
+                for n, (ticker, i) in enumerate(found):
+                    own = np.flatnonzero(X[n][snap.groups["industry"]] > 0.5)
+                    securities.append({
+                        "sid": int(snap.sids[i]), "ticker": ticker,
+                        "industry": str(industries[own[0]]) if own.size else None,
+                        "in_estu": bool(snap.in_estu[i]), "mcap": float(snap.mcap[i]),
+                        "factor_risk": float(np.sqrt(max(float(factor_var[n]), 0.0)) * ANN),
+                        "specific_risk": float(np.sqrt(max(float(spec_var[n]), 0.0)) * ANN),
+                        "total_risk": float(np.sqrt(max(float(factor_var[n] + spec_var[n]), 0.0)) * ANN),
+                    })
+            factors = [{"factor": f, "group": _group(f), "values": [float(snap.X[i, k]) for _, i in found]}
+                       for k, f in enumerate(snap.factors)]
+            return {"as_of": d, "max": COMPARE_MAX, "factors": factors,
+                    "securities": securities, "unmatched": unmatched}
+
+        return self._cached(f"security_exposures:{d}:{','.join(names)}", build)
 
     def specific(self, params: Params) -> dict[str, Any]:
         """Every specific-risk layer on the date, annualized, with each name's ticker and industry."""
